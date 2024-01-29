@@ -105,16 +105,23 @@ int __cdecl main(void)
 
     // Receive until the peer shuts down the connection
     do {
+        // Clears the buffer
+        memset(recvbuf, 0, sizeof(recvbuf));
+
         // Checks for available messages
         do {
             iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
+
             // Bytes received
+            printf("%s\n", recvbuf);
+            fflush(stdout);
+
             if (iResult > 0) {
                 // Build shell functionality
+                recvbuf[iResult] = '\0';
                 if (strcmp(recvbuf, "pwd") == 0) {
-                    printf("pwd\n");
                     if (getcwd(cwd, sizeof(cwd)) != nullptr) {
-                        iSendResult = send(ClientSocket, cwd, sizeof(cwd), 0);
+                        iSendResult = send(ClientSocket, cwd, strlen(cwd) + 1, 0);
                         if (iSendResult == SOCKET_ERROR) {
                             fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
                             closesocket(ClientSocket);
@@ -126,6 +133,7 @@ int __cdecl main(void)
                 if(strcmp(recvbuf, "exit") == 0) {
                     on = false;
                     printf("Closing connection...\n");
+                    break;
                 }
             }
 

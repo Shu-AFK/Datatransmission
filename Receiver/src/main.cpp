@@ -82,12 +82,16 @@ int __cdecl main(int argc, char **argv)
     bool on = true;
 
     do {
+        // Clear the buffer
+        memset(buff, 0, sizeof(buff));
+        memset(recvbuf, 0, sizeof(recvbuf));
+
         std::cout << "shell $ ";
-        std::cin >> buff;
+        std::cin.getline(buff, sizeof(buff));
 
         if(strcmp(buff, "exit") == 0) {
             on = false;
-            iResult = send(ConnectSocket, buff, (int)strlen(buff), 0);
+            iResult = send(ConnectSocket, buff, (int)strlen(buff) + 1, 0); // +1 for null terminator
             if(iResult == SOCKET_ERROR)
             {
                 fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
@@ -109,20 +113,19 @@ int __cdecl main(int argc, char **argv)
                 return 1;
             }
 
-            do {
-                iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
-                if(iResult > 0)
-                    printf("shell $ %s\n", buff);
+            iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
+            if(iResult > 0) {
+                recvbuf[iResult] = '\0';
+                printf("%s\n", recvbuf);
+            }
 
-                else if(iResult < 0)
-                {
-                    fprintf(stderr, "recv failed with error: %d\n", WSAGetLastError());
-                    closesocket(ConnectSocket);
-                    WSACleanup();
-                    return 1;
-                }
-
-            } while(iResult > 0);
+            else if(iResult < 0)
+            {
+                fprintf(stderr, "recv failed with error: %d\n", WSAGetLastError());
+                closesocket(ConnectSocket);
+                WSACleanup();
+                return 1;
+            }
         }
     } while (on);
 
