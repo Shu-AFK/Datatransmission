@@ -1,8 +1,11 @@
+// TODO: Unable to perform commands
+
 #define WIN32_LEAN_AND_MEAN
 
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <iostream>
 #include <stdio.h>
 
 #define DEFAULT_BUFLEN 512
@@ -15,7 +18,6 @@ int __cdecl main(int argc, char **argv)
     struct addrinfo *result = NULL,
             *ptr = NULL,
             hints;
-    const char *sendbuf = "this is a test";
     char recvbuf[DEFAULT_BUFLEN];
     int iResult;
     int recvbuflen = DEFAULT_BUFLEN;
@@ -76,16 +78,53 @@ int __cdecl main(int argc, char **argv)
         return 1;
     }
 
-    // Send an initial buffer
-    iResult = send( ConnectSocket, sendbuf, (int)strlen(sendbuf), 0 );
-    if (iResult == SOCKET_ERROR) {
-        printf("send failed with error: %d\n", WSAGetLastError());
-        closesocket(ConnectSocket);
-        WSACleanup();
-        return 1;
-    }
+    char buff[1024];
+    bool on = true;
 
-    printf("Bytes Sent: %ld\n", iResult);
+    do {
+        std::cout << "shell $ ";
+        std::cin >> buff;
+
+        if(strcmp(buff, "exit") == 0) {
+            on = false;
+            iResult = send(ConnectSocket, buff, (int)strlen(buff), 0);
+            if(iResult == SOCKET_ERROR)
+            {
+                fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+                fprintf(stderr, "could not perform %s\n", buff);
+                closesocket(ConnectSocket);
+                WSACleanup();
+                return 1;
+            }
+        }
+
+        if(strcmp(buff, "pwd") == 0) {
+            iResult = send(ConnectSocket, buff, (int)strlen(buff), 0);
+            if(iResult == SOCKET_ERROR)
+            {
+                fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+                fprintf(stderr, "could not perform %s\n", buff);
+                closesocket(ConnectSocket);
+                WSACleanup();
+                return 1;
+            }
+
+            do {
+                iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
+                if(iResult > 0)
+                    printf("shell $ %s\n", buff);
+
+                else if(iResult < 0)
+                {
+                    fprintf(stderr, "recv failed with error: %d\n", WSAGetLastError());
+                    closesocket(ConnectSocket);
+                    WSACleanup();
+                    return 1;
+                }
+
+            } while(iResult > 0);
+        }
+    } while (on);
 
     // shutdown the connection since no more data will be sent
     iResult = shutdown(ConnectSocket, SD_SEND);
@@ -95,19 +134,6 @@ int __cdecl main(int argc, char **argv)
         WSACleanup();
         return 1;
     }
-
-    // Receive until the peer closes the connection
-    do {
-
-        iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
-        if ( iResult > 0 )
-            printf("Bytes received: %d\n", iResult);
-        else if ( iResult == 0 )
-            printf("Connection closed\n");
-        else
-            printf("recv failed with error: %d\n", WSAGetLastError());
-
-    } while( iResult > 0 );
 
     // cleanup
     closesocket(ConnectSocket);

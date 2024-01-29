@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <fstream>
 #include "helper.h"
+#include <unistd.h>
 
 #define DEFAULT_BUFLEN 512
 #define DEFAULT_PORT "27015"
@@ -68,7 +69,7 @@ int __cdecl main(void)
         return 1;
     }
 
-    // Setup the TCP listening socket
+    // Set up the TCP listening socket
     iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
     if(iResult == SOCKET_ERROR) {
         fprintf(stderr, "bind failed with error: %d", WSAGetLastError());
@@ -99,32 +100,43 @@ int __cdecl main(void)
 
     closesocket(ListenSocket);
 
+    char cwd[1024];
+    bool on = true;
+
     // Receive until the peer shuts down the connection
     do {
-        iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
-        if(iResult > 0) {
-            printf("Bytes received: %d\n", iResult);
+        // Checks for available messages
+        do {
+            iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
+            // Bytes received
+            if (iResult > 0) {
+                // Build shell functionality
+                if (strcmp(recvbuf, "pwd") == 0) {
+                    printf("pwd\n");
+                    if (getcwd(cwd, sizeof(cwd)) != nullptr) {
+                        iSendResult = send(ClientSocket, cwd, sizeof(cwd), 0);
+                        if (iSendResult == SOCKET_ERROR) {
+                            fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+                            closesocket(ClientSocket);
+                            WSACleanup();
+                            return 1;
+                        }
+                    }
+                }
+                if(strcmp(recvbuf, "exit") == 0) {
+                    on = false;
+                    printf("Closing connection...\n");
+                }
+            }
 
-            // Echo the buffer back to the sender
-            iSendResult = send(ClientSocket, recvbuf, iResult, 0);
-            if(iSendResult == SOCKET_ERROR) {
-                fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+            else if(iResult < 0) {
+                fprintf(stderr, "recv failed with error: %d\n", WSAGetLastError());
                 closesocket(ClientSocket);
                 WSACleanup();
                 return 1;
             }
-            printf("Bytes sent: %d\n", iSendResult);
-        }
-
-        else if(iResult == 0)
-            printf("Connection closing...\n");
-        else {
-            fprintf(stderr, "recv failed with error: %d\n", WSAGetLastError());
-            closesocket(ClientSocket);
-            WSACleanup();
-            return 1;
-        }
-    } while (iResult > 0);
+        } while (iResult > 0);
+    } while (on);
 
     // Shutdown the connection
     iResult = shutdown(ClientSocket, SD_SEND);
