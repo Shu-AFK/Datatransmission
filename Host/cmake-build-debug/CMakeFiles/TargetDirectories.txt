@@ -1,0 +1,3 @@
+D:/Datatransmission/cmake-build-debug/CMakeFiles/Datatransmission.dir
+D:/Datatransmission/cmake-build-debug/CMakeFiles/edit_cache.dir
+D:/Datatransmission/cmake-build-debug/CMakeFiles/rebuild_cache.dir
