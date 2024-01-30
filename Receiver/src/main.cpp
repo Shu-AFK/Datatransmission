@@ -1,15 +1,16 @@
-// TODO: Unable to perform commands
-
 #define WIN32_LEAN_AND_MEAN
 
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <iostream>
+#include <string>
 #include <stdio.h>
 
 #define DEFAULT_BUFLEN 512
 #define DEFAULT_PORT "27015"
+
+int add_backslashes(char *str);
 
 int __cdecl main(int argc, char **argv)
 {
@@ -78,55 +79,84 @@ int __cdecl main(int argc, char **argv)
         return 1;
     }
 
-    char buff[1024];
+    std::string buff;
     bool on = true;
 
     do {
         // Clear the buffer
-        memset(buff, 0, sizeof(buff));
+        buff.clear();
         memset(recvbuf, 0, sizeof(recvbuf));
 
         std::cout << "shell $ ";
-        std::cin.getline(buff, sizeof(buff));
+        std::getline(std::cin, buff);
 
-        if(strcmp(buff, "exit") == 0) {
+        if(strcmp(buff.c_str(), "exit") == 0) {
             on = false;
-            iResult = send(ConnectSocket, buff, (int)strlen(buff) + 1, 0); // +1 for null terminator
+            iResult = send(ConnectSocket, buff.c_str(), (int) buff.length() + 1, 0); // +1 for null terminator
+            printf("Sent command to server: %s\n", buff.c_str()); // Log that you sent a command
             if(iResult == SOCKET_ERROR)
             {
                 fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
-                fprintf(stderr, "could not perform %s\n", buff);
+                fprintf(stderr, "could not perform %s\n", buff.c_str());
                 closesocket(ConnectSocket);
                 WSACleanup();
                 return 1;
             }
         }
 
-        if(strcmp(buff, "pwd") == 0) {
-            iResult = send(ConnectSocket, buff, (int)strlen(buff), 0);
+        if(strcmp(buff.c_str(), "pwd") == 0) {
+            iResult = send(ConnectSocket, buff.c_str(), (int) buff.length(), 0);
+            printf("Sent command to server: %s\n", buff.c_str()); // Log that you sent a command
             if(iResult == SOCKET_ERROR)
-            {
-                fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
-                fprintf(stderr, "could not perform %s\n", buff);
-                closesocket(ConnectSocket);
-                WSACleanup();
-                return 1;
-            }
+                goto cleanup_send_error;
 
             iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
+            printf("Received response from server: %s\n", recvbuf); // Log that you received a response
             if(iResult > 0) {
                 recvbuf[iResult] = '\0';
                 printf("%s\n", recvbuf);
             }
 
             else if(iResult < 0)
-            {
-                fprintf(stderr, "recv failed with error: %d\n", WSAGetLastError());
-                closesocket(ConnectSocket);
-                WSACleanup();
-                return 1;
-            }
+                goto cleanup_recv_error;
         }
+
+        if(strncmp(buff.c_str(), "cd ", 3) == 0)
+        {
+            iResult = send(ConnectSocket, buff.c_str(), (int) buff.length(), 0);
+            printf("Sent command to server: %s\n", buff.c_str()); // Log that you sent a command
+            if(iResult == SOCKET_ERROR)
+                goto cleanup_send_error;
+
+            iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
+            printf("Received response from server: %s\n", recvbuf); // Log that you received a response
+            if(iResult > 0) {
+                recvbuf[iResult] = '\0';
+                printf("%s\n", recvbuf);
+            }
+
+            else if(iResult < 0)
+                goto cleanup_recv_error;
+        }
+
+        if(strncmp(buff.c_str(), "ls", 2) == 0)
+        {
+            iResult = send(ConnectSocket, buff.c_str(), (int) buff.length(), 0);
+            printf("Sent command to server: %s\n", buff.c_str()); // Log that you sent a command
+            if(iResult == SOCKET_ERROR)
+                goto cleanup_send_error;
+
+            iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
+            printf("Received response from server: %s\n", recvbuf); // Log that you received a response
+            if(iResult > 0) {
+                recvbuf[iResult] = '\0';
+                printf("%s\n", recvbuf);
+            }
+
+            else if(iResult < 0)
+                goto cleanup_recv_error;
+        }
+
     } while (on);
 
     // shutdown the connection since no more data will be sent
@@ -143,4 +173,16 @@ int __cdecl main(int argc, char **argv)
     WSACleanup();
 
     return 0;
+
+cleanup_send_error:
+    fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+    closesocket(ConnectSocket);
+    WSACleanup();
+    return 1;
+
+cleanup_recv_error:
+    fprintf(stderr, "recv failed with error: %d\n", WSAGetLastError());
+    closesocket(ConnectSocket);
+    WSACleanup();
+    return 1;
 }

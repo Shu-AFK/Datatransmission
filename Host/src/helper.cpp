@@ -1,6 +1,8 @@
 #include "helper.h"
 #include <fstream>
 #include <string>
+#include <algorithm>
+#include <filesystem>
 
 int create_scripts(char *port) {
     std::ofstream OpenPortScript(R"(..\..\Host\src\scripts\OpenFirewallPort.bat)");
@@ -33,6 +35,7 @@ int create_scripts(char *port) {
                                                                ") ELSE (\n"
                                                                "    exit /b 1\n"
                                                                ")";
+
 
     OpenPortScript.close();
     CheckIfOpenScript.close();
@@ -71,4 +74,22 @@ int run_init() {
     }
 
     return 0;
+}
+
+std::string buff;
+std::string newPath;
+
+int run_ls(std::string path)
+{
+    buff.clear();
+
+    // Remove the white spaces from the path
+    newPath = path;
+    newPath.erase(std::remove_if(newPath.begin(), newPath.end(), ::isspace), newPath.end());
+
+    // Create the command that needs to be executed
+    buff = "ls \"" + newPath + R"(" > ..\..\Host\src\scripts\out.txt)";
+
+    // Execute the command
+    return system(buff.c_str());
 }
