@@ -10,7 +10,7 @@
 #define DEFAULT_BUFLEN 512
 #define DEFAULT_PORT "27015"
 
-int add_backslashes(char *str);
+#define BUFFER_SIZE 4096
 
 int __cdecl main(int argc, char **argv)
 {
@@ -79,85 +79,37 @@ int __cdecl main(int argc, char **argv)
         return 1;
     }
 
-    std::string buff;
-    bool on = true;
+    std::string buffer;
+    buffer.resize(BUFFER_SIZE);
+    std::string command;
 
-    do {
-        // Clear the buffer
-        buff.clear();
-        memset(recvbuf, 0, sizeof(recvbuf));
+    while (true)
+    {
+        // Clears the strings
+        buffer.clear();
+        command.clear();
 
+        // Read input
         std::cout << "shell $ ";
-        std::getline(std::cin, buff);
+        std::getline(std::cin, command);
 
-        if(strcmp(buff.c_str(), "exit") == 0) {
-            on = false;
-            iResult = send(ConnectSocket, buff.c_str(), (int) buff.length() + 1, 0); // +1 for null terminator
-            printf("Sent command to server: %s\n", buff.c_str()); // Log that you sent a command
-            if(iResult == SOCKET_ERROR)
-            {
-                fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
-                fprintf(stderr, "could not perform %s\n", buff.c_str());
-                closesocket(ConnectSocket);
-                WSACleanup();
-                return 1;
-            }
+        // send command to server
+        send(ConnectSocket, command.c_str(), command.length(), 0);
+
+        // read response from server
+        int bytes_recvd = recv(ConnectSocket, &buffer[0], buffer.size() - 1, 0);
+
+        if (bytes_recvd > 0) { // data received
+            std::string response(buffer.begin(), buffer.begin() + bytes_recvd);
+            std::cout << "Response from server: " << response << std::endl;
+        } else if (bytes_recvd == 0) { // connection closed
+            std::cout << "Connection closed" << std::endl;
+            break;
+        } else { // error
+            std::cerr << "Recv failed with error: " << WSAGetLastError() << std::endl;
+            break;
         }
-
-        if(strcmp(buff.c_str(), "pwd") == 0) {
-            iResult = send(ConnectSocket, buff.c_str(), (int) buff.length(), 0);
-            printf("Sent command to server: %s\n", buff.c_str()); // Log that you sent a command
-            if(iResult == SOCKET_ERROR)
-                goto cleanup_send_error;
-
-            iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
-            printf("Received response from server: %s\n", recvbuf); // Log that you received a response
-            if(iResult > 0) {
-                recvbuf[iResult] = '\0';
-                printf("%s\n", recvbuf);
-            }
-
-            else if(iResult < 0)
-                goto cleanup_recv_error;
-        }
-
-        if(strncmp(buff.c_str(), "cd ", 3) == 0)
-        {
-            iResult = send(ConnectSocket, buff.c_str(), (int) buff.length(), 0);
-            printf("Sent command to server: %s\n", buff.c_str()); // Log that you sent a command
-            if(iResult == SOCKET_ERROR)
-                goto cleanup_send_error;
-
-            iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
-            printf("Received response from server: %s\n", recvbuf); // Log that you received a response
-            if(iResult > 0) {
-                recvbuf[iResult] = '\0';
-                printf("%s\n", recvbuf);
-            }
-
-            else if(iResult < 0)
-                goto cleanup_recv_error;
-        }
-
-        if(strncmp(buff.c_str(), "ls", 2) == 0)
-        {
-            iResult = send(ConnectSocket, buff.c_str(), (int) buff.length(), 0);
-            printf("Sent command to server: %s\n", buff.c_str()); // Log that you sent a command
-            if(iResult == SOCKET_ERROR)
-                goto cleanup_send_error;
-
-            iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
-            printf("Received response from server: %s\n", recvbuf); // Log that you received a response
-            if(iResult > 0) {
-                recvbuf[iResult] = '\0';
-                printf("%s\n", recvbuf);
-            }
-
-            else if(iResult < 0)
-                goto cleanup_recv_error;
-        }
-
-    } while (on);
+    }
 
     // shutdown the connection since no more data will be sent
     iResult = shutdown(ConnectSocket, SD_SEND);
@@ -173,16 +125,4 @@ int __cdecl main(int argc, char **argv)
     WSACleanup();
 
     return 0;
-
-cleanup_send_error:
-    fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
-    closesocket(ConnectSocket);
-    WSACleanup();
-    return 1;
-
-cleanup_recv_error:
-    fprintf(stderr, "recv failed with error: %d\n", WSAGetLastError());
-    closesocket(ConnectSocket);
-    WSACleanup();
-    return 1;
 }

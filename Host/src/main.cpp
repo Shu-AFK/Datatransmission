@@ -1,13 +1,5 @@
-/* SOURCE: https://learn.microsoft.com/en-us/windows/win32/winsock/complete-server-code
- * READ: https://learn.microsoft.com/en-us/training/modules/build-a-tcp-echo-client/?source=recommendations */
-
-// TODO: Add error sending to client
-
-#undef UNICODE
-
 #define WIN32_LEAN_AND_MEAN
 
-// Needed Libs
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -20,6 +12,13 @@
 
 #define DEFAULT_BUFLEN 512
 #define DEFAULT_PORT "27015"
+
+// Function definitions
+int handlePwdCommand(SOCKET clientSocket);
+void handleExitCommand(SOCKET clientSocket);
+int handleChangeDirectoryCommand(SOCKET clientSocket, const char* path);
+int handleLsCommand(SOCKET clientSocket, char *command);
+void sendCmdDoesntExist(SOCKET clientSocket);
 
 int shiftStrLeft(char *str, int num);
 
@@ -106,167 +105,45 @@ int __cdecl main(void)
 
     closesocket(ListenSocket);
 
-    std::string cwd;
-    bool on = true;
-    char sendBuf[DEFAULT_BUFLEN];
-    std::string ls;
-
-    // Receive until the peer shuts down the connection
     do {
-        // Clears the buffer
         memset(recvbuf, 0, sizeof(recvbuf));
+        iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
 
-        // Checks for available messages
-        do {
-            iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
+        if (iResult > 0) {
+            recvbuf[iResult] = '\0';
 
-            // Bytes received
-            printf("%s\n", recvbuf);
-            fflush(stdout);
-
-            if (iResult > 0) {
-                // Build shell functionality
-                recvbuf[iResult] = '\0';
-
-                // Print working directory
-                if (strcmp(recvbuf, "pwd") == 0) {
-                    cwd = std::filesystem::current_path().string();
-
-                    printf("Current directory on server: %s\n", cwd.c_str()); // Log current directory
-
-                    iSendResult = send(ClientSocket, cwd.c_str(), (int) cwd.length() + 1, 0);
-                    if (iSendResult == SOCKET_ERROR)
-                        goto send_cleanup_error;
-
-                    printf("Sent current directory to client\n"); // Log that directory was sent
-                }
-
-                // Exit the loop
-                if(strcmp(recvbuf, "exit") == 0) {
-                    on = false;
-                    printf("Closing connection...\n");
-                    break;
-                }
-
-                // Change working directory
-                if (strncmp(recvbuf, "cd ", 3) == 0) {
-                    // Remove the "cd "
-                    if (shiftStrLeft(recvbuf, 3) != 0) {
-                        fprintf(stderr, "Could not shift recvbuf\n");
-                        closesocket(ClientSocket);
-                        WSACleanup();
-                        return 1;
-                    }
-
-                    try {
-                        printf("Current directory on server: %s\n", cwd.c_str()); // Log current directory
-                        std::filesystem::current_path(recvbuf); // Change the directory
-                        std::string cwd = std::filesystem::current_path().string(); // Get the current directory as string
-
-                        int n = snprintf(sendBuf, DEFAULT_BUFLEN, "Changed working directory to %s", cwd.c_str());
-                        if (n >= DEFAULT_BUFLEN) {
-                            fprintf(stderr, "sendBuf is too small for the message\n");
-                            closesocket(ClientSocket);
-                            WSACleanup();
-                            return 1;
-                        }
-
-                        iSendResult = send(ClientSocket, sendBuf, n, 0); // Send the response
-                        printf("Sent command to client: %s", sendBuf); // Log that you sent a command
-                        if (iSendResult == SOCKET_ERROR) {
-                            fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
-                            closesocket(ClientSocket);
-                            WSACleanup();
-                            return 1;
-                        }
-                    } catch (const std::filesystem::filesystem_error& e) {
-                        std::cerr << "Error: " << e.what() << std::endl;
-
-                        // Send error message to client
-                        snprintf(sendBuf, DEFAULT_BUFLEN, "Error changing directory: %s", e.what());
-                        send(ClientSocket, sendBuf, (int) strlen(sendBuf), 0); // Send the error message
-                    }
-                }
-
-                if (strncmp(recvbuf, "ls", 2) == 0) {
-                    // Prints the ls of the cwd into a tmp file
-                    if (strcmp(recvbuf, "ls") == 0) {
-                        if (run_ls(std::filesystem::current_path().string()) != 0) {
-                            fprintf(stderr, "could not execute ls %s\n", recvbuf);
-                            closesocket(ClientSocket);
-                            WSACleanup();
-                            return 1;
-                        }
-                    } else {
-                        // Removes the "ls "
-                        if (shiftStrLeft(recvbuf, 3) != 0) {
-                            fprintf(stderr, "could not shift recvbuf\n");
-                            closesocket(ClientSocket);
-                            WSACleanup();
-                            return 1;
-                        }
-
-                        // Runs the command, printing the ls command for the given path into a tmp file
-                        if (run_ls(recvbuf) != 0) {
-                            fprintf(stderr, "could not execute ls %s\n", recvbuf);
-                            closesocket(ClientSocket);
-                            WSACleanup();
-                            return 1;
-                        }
-                    }
-
-                    // Opens the file
-                    std::ifstream tmpFile(R"(..\..\Host\src\scripts\out.txt)");
-                    if (!tmpFile.is_open()) {
-                        fprintf(stderr, "could not open out.txt\n");
-                        closesocket(ClientSocket);
-                        WSACleanup();
-                        return 1;
-                    }
-
-                    // Turns contents into a string of everything written in the tmp file
-                    std::string contents;
-                    std::string line;
-                    while (std::getline(tmpFile, line)) {
-                        contents.append(line + "\n");
-                    }
-                    tmpFile.close();
-                    remove(R"(..\..\Host\src\scripts\out.txt)");
-
-                    iSendResult = send(ClientSocket, contents.c_str(), (int)contents.length(), 0);
-                    if (iSendResult == SOCKET_ERROR) {
-                        goto send_cleanup_error;
-                    }
-                }
-
-                // Send back that the sent command doesn't exist
-                else
-                {
-                    sprintf(sendBuf, "The command doesn't exist");
-                    iSendResult = send(ClientSocket, sendBuf, (int) strlen(sendBuf) + 1, 0);
-                    if (iSendResult == SOCKET_ERROR) {
-                        iResult = shutdown(ClientSocket, SD_SEND);
-                        if(iResult == SOCKET_ERROR) {
-                            fprintf(stderr, "shutdown failed with error: %d\n", WSAGetLastError());
-                            closesocket(ClientSocket);
-                            WSACleanup();
-                            return 1;
-                        }
-                    }
-                    goto send_cleanup_error;
-                }
+            if (strcmp(recvbuf, "pwd") == 0) {
+                printf("%s\n", recvbuf);
+                if (handlePwdCommand(ClientSocket) == -1)
+                    return 1;
             }
-
-            else if(iResult < 0) {
-                fprintf(stderr, "recv failed with error: %d\n", WSAGetLastError());
-                closesocket(ClientSocket);
-                WSACleanup();
-                return 1;
+            else if(strcmp(recvbuf, "exit") == 0) {
+                printf("%s\n", recvbuf);
+                handleExitCommand(ClientSocket);
+                return 0;
             }
-        } while (iResult > 0);
-    } while (on);
+            else if (strncmp(recvbuf, "cd ", 3) == 0) {
+                printf("%s\n", recvbuf);
+                if (handleChangeDirectoryCommand(ClientSocket, recvbuf + 3) == -1)
+                    return 1;
+            }
+            else if (strncmp(recvbuf, "ls", 2) == 0) {
+                printf("%s\n", recvbuf);
+                if (handleLsCommand(ClientSocket, recvbuf) == -1)
+                    return 1;
+            }
+            else {
+                sendCmdDoesntExist(ClientSocket);
+            }
+        }
+        else if(iResult < 0) {
+            fprintf(stderr, "recv failed with error: %d\n", WSAGetLastError());
+            closesocket(ClientSocket);
+            WSACleanup();
+            return 1;
+        }
+    } while (iResult > 0);
 
-    // Shutdown the connection
     iResult = shutdown(ClientSocket, SD_SEND);
     if(iResult == SOCKET_ERROR) {
         fprintf(stderr, "shutdown failed with error: %d\n", WSAGetLastError());
@@ -280,12 +157,134 @@ int __cdecl main(void)
     WSACleanup();
 
     return 0;
+}
 
-send_cleanup_error:
-    fprintf(stderr, "send failed with error: %d, tried to send: %d bytes\n", WSAGetLastError(), (int) cwd.length() + 1);
-    closesocket(ClientSocket);
-    WSACleanup();
-    return 1;
+int handlePwdCommand(SOCKET clientSocket) {
+    std::string cwd = std::filesystem::current_path().string();
+    printf("Current directory on server: %s\n", cwd.c_str());
+
+    int iSendResult = send(clientSocket, cwd.c_str(), (int) cwd.length(), 0);
+    if (iSendResult == SOCKET_ERROR) {
+        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+        closesocket(clientSocket);
+        WSACleanup();
+        return -1;
+    }
+
+    return 0;
+}
+
+void handleExitCommand(SOCKET ClientSocket) {
+    printf("Closing connection...\n");
+}
+
+int handleChangeDirectoryCommand(SOCKET clientSocket, const char* path) {
+    try {
+        std::filesystem::current_path(path);
+        std::string cwd = std::filesystem::current_path().string();
+
+        char sendBuf[DEFAULT_BUFLEN];
+        int n = snprintf(sendBuf, DEFAULT_BUFLEN, "Changed working directory to %s", cwd.c_str());
+
+        if (n >= DEFAULT_BUFLEN) {
+            fprintf(stderr, "sendBuf is too small for the message\n");
+            closesocket(clientSocket);
+            WSACleanup();
+            return -1;
+        }
+
+        int iSendResult = send(clientSocket, sendBuf, n, 0);
+        if (iSendResult == SOCKET_ERROR) {
+            fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+            closesocket(clientSocket);
+            WSACleanup();
+            return -1;
+        }
+
+        return 0;
+    }
+    catch (const std::filesystem::filesystem_error& e) {
+        char sendBuf[DEFAULT_BUFLEN];
+        snprintf(sendBuf, DEFAULT_BUFLEN, "Error changing directory: %s", e.what());
+
+        int iSendResult = send(clientSocket, sendBuf, (int) strlen(sendBuf), 0);
+        if(iSendResult == SOCKET_ERROR) {
+            fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+            closesocket(clientSocket);
+            WSACleanup();
+            return -1;
+        }
+
+        return 0;
+    }
+}
+
+int handleLsCommand(SOCKET clientSocket, char *command) {
+    std::string prevDirectory;
+    std::string cwd;
+    bool thisDirectory = false;
+
+    if(strcmp(command, "ls") == 0)
+        cwd = std::filesystem::current_path().string();
+    else {
+        try{
+            shiftStrLeft(command, 3);
+            prevDirectory = std::filesystem::current_path().string();
+            std::filesystem::current_path(command);
+            cwd = std::filesystem::current_path().string();
+            thisDirectory = true;
+        } catch(const std::exception& e) {
+            std::cerr << "Error in handleLS not current directory, error code: " << e.what() << std::endl;
+            return -1;
+        }
+    }
+    try {
+        std::string directoryContents = "Directory listing for " + cwd + "\n\n";
+
+        // directory_iterator is used to traverse all the entries of directory
+        for (const auto & entry : std::filesystem::directory_iterator(cwd)) {
+            directoryContents += entry.path().filename().string() + "\n";
+        }
+
+        int iSendResult = send(clientSocket, directoryContents.c_str(), (int) directoryContents.length(), 0);
+
+        if (iSendResult == SOCKET_ERROR) {
+            fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+            closesocket(clientSocket);
+            WSACleanup();
+            return -1;
+        }
+
+        if(thisDirectory)
+            std::filesystem::current_path(prevDirectory);
+
+        return 0;
+
+    } catch (const std::exception& e) {
+        char sendBuf[DEFAULT_BUFLEN];
+        snprintf(sendBuf, DEFAULT_BUFLEN, "Error executing ls: %s", e.what());
+
+        int iSendResult = send(clientSocket, sendBuf, strlen(sendBuf), 0);
+        if(iSendResult == SOCKET_ERROR) {
+            fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+            closesocket(clientSocket);
+            WSACleanup();
+            return -1;
+        }
+
+        return 0;
+    }
+}
+
+void sendCmdDoesntExist(SOCKET ClientSocket) {
+    char sendBuf[DEFAULT_BUFLEN];
+    sprintf(sendBuf, "The command doesn't exist");
+    int iSendResult = send(ClientSocket, sendBuf, (int) strlen(sendBuf) + 1, 0);
+    if (iSendResult == SOCKET_ERROR) {
+        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+        closesocket(ClientSocket);
+        WSACleanup();
+    }
 }
 
 int shiftStrLeft(char *str, int num) {

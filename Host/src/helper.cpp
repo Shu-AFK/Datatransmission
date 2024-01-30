@@ -75,21 +75,3 @@ int run_init() {
 
     return 0;
 }
-
-std::string buff;
-std::string newPath;
-
-int run_ls(std::string path)
-{
-    buff.clear();
-
-    // Remove the white spaces from the path
-    newPath = path;
-    newPath.erase(std::remove_if(newPath.begin(), newPath.end(), ::isspace), newPath.end());
-
-    // Create the command that needs to be executed
-    buff = "ls \"" + newPath + R"(" > ..\..\Host\src\scripts\out.txt)";
-
-    // Execute the command
-    return system(buff.c_str());
-}
