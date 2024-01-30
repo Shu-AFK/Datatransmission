@@ -79,15 +79,19 @@ int __cdecl main(int argc, char **argv)
         return 1;
     }
 
-    std::string buffer;
-    buffer.resize(BUFFER_SIZE);
     std::string command;
 
-    while (true)
+    std::string response;
+    char recvChar;
+    int endOfMessageCounter = 0;
+
+    bool status = true;
+
+    while (status)
     {
         // Clears the strings
-        buffer.clear();
         command.clear();
+        response.clear();
 
         // Read input
         std::cout << "shell $ ";
@@ -97,17 +101,28 @@ int __cdecl main(int argc, char **argv)
         send(ConnectSocket, command.c_str(), command.length(), 0);
 
         // read response from server
-        int bytes_recvd = recv(ConnectSocket, &buffer[0], buffer.size() - 1, 0);
+        while (true) {
+            int bytes_recvd = recv(ConnectSocket, &recvChar, 1, 0);
 
-        if (bytes_recvd > 0) { // data received
-            std::string response(buffer.begin(), buffer.begin() + bytes_recvd);
-            std::cout << "Response from server: " << response << std::endl;
-        } else if (bytes_recvd == 0) { // connection closed
-            std::cout << "Connection closed" << std::endl;
-            break;
-        } else { // error
-            std::cerr << "Recv failed with error: " << WSAGetLastError() << std::endl;
-            break;
+            if (bytes_recvd > 0) { // data received
+                if (recvChar != '\f') { // continue receiving if it is not the \f character
+                    response += recvChar;
+                } else {
+                    std::cout << "Response from server: " << response << std::endl;
+                    response.clear();
+                    break;
+                }
+
+            } else if (bytes_recvd == 0) { // connection closed
+                std::cout << "Connection closed" << std::endl;
+                status = false;
+                break;
+
+            } else { // error
+                std::cerr << "Recv failed with error: " << WSAGetLastError() << std::endl;
+                status = false;
+                break;
+            }
         }
     }
 

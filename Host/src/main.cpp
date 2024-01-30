@@ -162,6 +162,7 @@ int __cdecl main(void)
 int handlePwdCommand(SOCKET clientSocket) {
     std::string cwd = std::filesystem::current_path().string();
     printf("Current directory on server: %s\n", cwd.c_str());
+    cwd += '\f';
 
     int iSendResult = send(clientSocket, cwd.c_str(), (int) cwd.length(), 0);
     if (iSendResult == SOCKET_ERROR) {
@@ -184,7 +185,7 @@ int handleChangeDirectoryCommand(SOCKET clientSocket, const char* path) {
         std::string cwd = std::filesystem::current_path().string();
 
         char sendBuf[DEFAULT_BUFLEN];
-        int n = snprintf(sendBuf, DEFAULT_BUFLEN, "Changed working directory to %s", cwd.c_str());
+        int n = snprintf(sendBuf, DEFAULT_BUFLEN, "Changed working directory to %s\f", cwd.c_str());
 
         if (n >= DEFAULT_BUFLEN) {
             fprintf(stderr, "sendBuf is too small for the message\n");
@@ -205,7 +206,7 @@ int handleChangeDirectoryCommand(SOCKET clientSocket, const char* path) {
     }
     catch (const std::filesystem::filesystem_error& e) {
         char sendBuf[DEFAULT_BUFLEN];
-        snprintf(sendBuf, DEFAULT_BUFLEN, "Error changing directory: %s", e.what());
+        snprintf(sendBuf, DEFAULT_BUFLEN, "Error changing directory: %s\n", e.what());
 
         int iSendResult = send(clientSocket, sendBuf, (int) strlen(sendBuf), 0);
         if(iSendResult == SOCKET_ERROR) {
@@ -239,13 +240,14 @@ int handleLsCommand(SOCKET clientSocket, char *command) {
         }
     }
     try {
-        std::string directoryContents = "Directory listing for " + cwd + "\n\n";
+        std::string directoryContents = "Directory listing for " + cwd + "\n";
 
         // directory_iterator is used to traverse all the entries of directory
         for (const auto & entry : std::filesystem::directory_iterator(cwd)) {
             directoryContents += entry.path().filename().string() + "\n";
         }
 
+        directoryContents += '\f';
         int iSendResult = send(clientSocket, directoryContents.c_str(), (int) directoryContents.length(), 0);
 
         if (iSendResult == SOCKET_ERROR) {
@@ -262,7 +264,7 @@ int handleLsCommand(SOCKET clientSocket, char *command) {
 
     } catch (const std::exception& e) {
         char sendBuf[DEFAULT_BUFLEN];
-        snprintf(sendBuf, DEFAULT_BUFLEN, "Error executing ls: %s", e.what());
+        snprintf(sendBuf, DEFAULT_BUFLEN, "Error executing ls: %s\f", e.what());
 
         int iSendResult = send(clientSocket, sendBuf, strlen(sendBuf), 0);
         if(iSendResult == SOCKET_ERROR) {
@@ -278,7 +280,7 @@ int handleLsCommand(SOCKET clientSocket, char *command) {
 
 void sendCmdDoesntExist(SOCKET ClientSocket) {
     char sendBuf[DEFAULT_BUFLEN];
-    sprintf(sendBuf, "The command doesn't exist");
+    sprintf(sendBuf, "The command doesn't exist\f");
     int iSendResult = send(ClientSocket, sendBuf, (int) strlen(sendBuf) + 1, 0);
     if (iSendResult == SOCKET_ERROR) {
         fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
