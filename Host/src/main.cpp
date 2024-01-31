@@ -7,9 +7,9 @@ pwd - Print working directory. //
 cat - Concatenate and display the content of files.
 echo - Output the inputs.
 mkdir - Create a new directory. //
-rmdir - Remove an empty directory. //
-rm - Remove files or directories.
-touch - Create an empty file.
+rmdir - Removes a directory. //
+rm - Remove files or empty directories. //
+touch - Create an empty file. //
 mv - Move or rename files or directories.
 cp - Copy files or directories.
 find - Search for files in a directory hierarchy.
@@ -32,17 +32,21 @@ copy_pc - copy's a file to the client pc
 #define DEFAULT_BUFLEN 512
 #define DEFAULT_PORT "27015"
 
-// Function definitions
+// Basic client request operations
 int handlePwdCommand(SOCKET clientSocket);
 void handleExitCommand(SOCKET clientSocket);
 int handleChangeDirectoryCommand(SOCKET clientSocket, const char* path);
 int handleLsCommand(SOCKET clientSocket, char *command);
 void sendCmdDoesntExist(SOCKET clientSocket);
 int handleMakeDirectoryCommand(SOCKET socket, char *path);
+int handleTouchFileCommand(SOCKET clientSocket, char *fileName);
 int handleRemoveDirectoryCommand(SOCKET socket, char *path);
+int handleRemoveFileCommand(SOCKET clientSocket, char *fileName);
 
+// Error function
 void handleError(SOCKET clientSocket, const char *command);
 
+// Misc functions
 int shiftStrLeft(char *str, int num);
 
 
@@ -176,6 +180,22 @@ int __cdecl main()
                     return 1;
                 }
             }
+            else if(strncmp(recvbuf, "touch ", 6) == 0) {
+                printf("%s\n", recvbuf);
+                if(handleTouchFileCommand(ClientSocket, recvbuf) == -1) {
+                    handleError(ClientSocket, "touch");
+                    return 1;
+                }
+            }
+            else if(strncmp(recvbuf, "rm ", 3) == 0) {
+                printf("%s\n", recvbuf);
+                if(handleRemoveFileCommand(ClientSocket, recvbuf) == -1) {
+                    handleError(ClientSocket, "rm");
+                    return 1;
+                }
+            }
+
+
             else {
                 sendCmdDoesntExist(ClientSocket);
             }
@@ -203,6 +223,52 @@ int __cdecl main()
     return 0;
 }
 
+int handleRemoveFileCommand(SOCKET clientSocket, char *fileName) {
+    shiftStrLeft(fileName, 3);
+
+    // Removes specified file
+    try {
+        if(std::filesystem::remove(fileName)) {
+            std::string sendSuc = std::format("{} was successfully removed!\f", fileName);
+
+            int iSendResult = send(clientSocket, sendSuc.c_str(), (int) sendSuc.length(), 0);
+            if(iSendResult == SOCKET_ERROR) {
+                fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+                return -1;
+            }
+        } else {
+            return -1;
+        }
+
+    } catch (const std::filesystem::filesystem_error& e) {
+        fprintf(stderr, "Error removing file: %s\n", e.what());
+        return -1;
+    }
+    return 1;
+}
+
+int handleTouchFileCommand(SOCKET clientSocket, char *fileName) {
+    shiftStrLeft(fileName, 6);
+
+    std::ofstream file(fileName);
+    if(!file)
+    {
+        std::cerr << "Error in opening " << fileName << std::endl;
+        return -1;
+    }
+
+    std::string sendSuc = std::format("{} was successfully created!\f", fileName);
+
+    int iSendResult = send(clientSocket, sendSuc.c_str(), (int) sendSuc.length(), 0);
+    if(iSendResult == SOCKET_ERROR) {
+        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+        return -1;
+    }
+
+    file.close();
+    return 0;
+}
+
 int handleRemoveDirectoryCommand(SOCKET clientSocket, char *path) {
     shiftStrLeft(path, 6);
 
@@ -214,8 +280,6 @@ int handleRemoveDirectoryCommand(SOCKET clientSocket, char *path) {
         int iSendResult = send(clientSocket, sendSuc.c_str(), (int) sendSuc.length(), 0);
         if(iSendResult == SOCKET_ERROR) {
             fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
-            closesocket(clientSocket);
-            WSACleanup();
             return -1;
         }
 
@@ -236,11 +300,8 @@ int handleMakeDirectoryCommand(SOCKET clientSocket, char *path) {
         int iSendResult = send(clientSocket, sendSuc.c_str(), (int) sendSuc.length(), 0);
         if(iSendResult == SOCKET_ERROR) {
             fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
-            closesocket(clientSocket);
-            WSACleanup();
             return -1;
         }
-
         return 0;
     }
     else
@@ -255,8 +316,6 @@ int handlePwdCommand(SOCKET clientSocket) {
     int iSendResult = send(clientSocket, cwd.c_str(), (int) cwd.length(), 0);
     if (iSendResult == SOCKET_ERROR) {
         fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
-        closesocket(clientSocket);
-        WSACleanup();
         return -1;
     }
 
@@ -277,16 +336,12 @@ int handleChangeDirectoryCommand(SOCKET clientSocket, const char* path) {
 
         if (n >= DEFAULT_BUFLEN) {
             fprintf(stderr, "sendBuf is too small for the message\n");
-            closesocket(clientSocket);
-            WSACleanup();
             return -1;
         }
 
         int iSendResult = send(clientSocket, sendBuf, n, 0);
         if (iSendResult == SOCKET_ERROR) {
             fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
-            closesocket(clientSocket);
-            WSACleanup();
             return -1;
         }
 
@@ -299,8 +354,6 @@ int handleChangeDirectoryCommand(SOCKET clientSocket, const char* path) {
         int iSendResult = send(clientSocket, sendBuf, (int) strlen(sendBuf), 0);
         if(iSendResult == SOCKET_ERROR) {
             fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
-            closesocket(clientSocket);
-            WSACleanup();
             return -1;
         }
 
@@ -340,8 +393,6 @@ int handleLsCommand(SOCKET clientSocket, char *command) {
 
         if (iSendResult == SOCKET_ERROR) {
             fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
-            closesocket(clientSocket);
-            WSACleanup();
             return -1;
         }
 
@@ -357,8 +408,6 @@ int handleLsCommand(SOCKET clientSocket, char *command) {
         int iSendResult = send(clientSocket, sendBuf, strlen(sendBuf), 0);
         if(iSendResult == SOCKET_ERROR) {
             fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
-            closesocket(clientSocket);
-            WSACleanup();
             return -1;
         }
 
