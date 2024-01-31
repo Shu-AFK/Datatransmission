@@ -4,7 +4,7 @@ add_executable(HostExec src/main.cpp
 
 # Link against the Winsock library
 if(WIN32)
-    target_link_libraries(HostExec Ws2_32)
+    target_link_libraries(HostExec PRIVATE Ws2_32)
 endif()
 
 # Link against the filesystem library if necessary

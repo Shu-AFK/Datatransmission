@@ -83,7 +83,6 @@ int __cdecl main(int argc, char **argv)
 
     std::string response;
     char recvChar;
-    int endOfMessageCounter = 0;
 
     bool status = true;
 

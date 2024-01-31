@@ -1,5 +1,23 @@
 #define WIN32_LEAN_AND_MEAN
 
+/*
+ls - List all files and directories in the current directory. //
+cd - Change current directory. //
+pwd - Print working directory. //
+cat - Concatenate and display the content of files.
+echo - Output the inputs.
+mkdir - Create a new directory.
+rmdir - Remove an empty directory.
+rm - Remove files or directories.
+touch - Create an empty file.
+mv - Move or rename files or directories.
+cp - Copy files or directories.
+find - Search for files in a directory hierarchy.
+grep - Search text using patterns.
+exit - Exit the shell. //
+copy_pc - copy's a file to the client pc
+*/
+
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -9,6 +27,7 @@
 #include <direct.h>
 #include <filesystem>
 #include <iostream>
+#include <format>
 
 #define DEFAULT_BUFLEN 512
 #define DEFAULT_PORT "27015"
@@ -19,10 +38,13 @@ void handleExitCommand(SOCKET clientSocket);
 int handleChangeDirectoryCommand(SOCKET clientSocket, const char* path);
 int handleLsCommand(SOCKET clientSocket, char *command);
 void sendCmdDoesntExist(SOCKET clientSocket);
+int handleMakeDirectoryCommand(SOCKET socket, char *path);
+
+void handleError(SOCKET clientSocket, const char *command);
 
 int shiftStrLeft(char *str, int num);
 
-int __cdecl main(void)
+int __cdecl main()
 {
     // Creates helper scripts
     if(create_scripts(DEFAULT_PORT) != 0)
@@ -114,8 +136,10 @@ int __cdecl main(void)
 
             if (strcmp(recvbuf, "pwd") == 0) {
                 printf("%s\n", recvbuf);
-                if (handlePwdCommand(ClientSocket) == -1)
+                if (handlePwdCommand(ClientSocket) == -1) {
+                    handleError(ClientSocket, "pwd");
                     return 1;
+                }
             }
             else if(strcmp(recvbuf, "exit") == 0) {
                 printf("%s\n", recvbuf);
@@ -124,13 +148,24 @@ int __cdecl main(void)
             }
             else if (strncmp(recvbuf, "cd ", 3) == 0) {
                 printf("%s\n", recvbuf);
-                if (handleChangeDirectoryCommand(ClientSocket, recvbuf + 3) == -1)
+                if (handleChangeDirectoryCommand(ClientSocket, recvbuf + 3) == -1) {
+                    handleError(ClientSocket, "cd");
                     return 1;
+                }
             }
             else if (strncmp(recvbuf, "ls", 2) == 0) {
                 printf("%s\n", recvbuf);
-                if (handleLsCommand(ClientSocket, recvbuf) == -1)
+                if (handleLsCommand(ClientSocket, recvbuf) == -1) {
+                    handleError(ClientSocket, "ls");
                     return 1;
+                }
+            }
+            else if(strncmp(recvbuf, "mkdir ", 6) == 0) {
+                printf("%s\n", recvbuf);
+                if(handleMakeDirectoryCommand(ClientSocket, recvbuf) == -1) {
+                    handleError(ClientSocket, "mkdir");
+                    return 1;
+                }
             }
             else {
                 sendCmdDoesntExist(ClientSocket);
@@ -157,6 +192,25 @@ int __cdecl main(void)
     WSACleanup();
 
     return 0;
+}
+
+int handleMakeDirectoryCommand(SOCKET clientSocket, char *path) {
+    shiftStrLeft(path, 6);
+    if(CreateDirectory(path, NULL) || ERROR_ALREADY_EXISTS == GetLastError())
+    {
+        std::string sendSuc = std::format("Directory {} was successfully created!\f", path);
+        int iSendResult = send(clientSocket, sendSuc.c_str(), (int) sendSuc.length(), 0);
+        if(iSendResult == SOCKET_ERROR) {
+            fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+            closesocket(clientSocket);
+            WSACleanup();
+            return -1;
+        }
+
+        return 0;
+    }
+    else
+        return -1;
 }
 
 int handlePwdCommand(SOCKET clientSocket) {
@@ -287,6 +341,19 @@ void sendCmdDoesntExist(SOCKET ClientSocket) {
         closesocket(ClientSocket);
         WSACleanup();
     }
+}
+
+void handleError(SOCKET clientSocket, const char *command) {
+    std::string message = std::format("Error in performing {} with error code: {}\n", command, WSAGetLastError());
+    std::cerr << message;
+
+    message += '\f';
+    int iSendResult = send(clientSocket, message.c_str(), (int) message.length(), 0);
+    if(iSendResult == SOCKET_ERROR)
+        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+
+    closesocket(clientSocket);
+    WSACleanup();
 }
 
 int shiftStrLeft(char *str, int num) {
