@@ -6,8 +6,8 @@ cd - Change current directory. //
 pwd - Print working directory. //
 cat - Concatenate and display the content of files.
 echo - Output the inputs.
-mkdir - Create a new directory.
-rmdir - Remove an empty directory.
+mkdir - Create a new directory. //
+rmdir - Remove an empty directory. //
 rm - Remove files or directories.
 touch - Create an empty file.
 mv - Move or rename files or directories.
@@ -39,10 +39,12 @@ int handleChangeDirectoryCommand(SOCKET clientSocket, const char* path);
 int handleLsCommand(SOCKET clientSocket, char *command);
 void sendCmdDoesntExist(SOCKET clientSocket);
 int handleMakeDirectoryCommand(SOCKET socket, char *path);
+int handleRemoveDirectoryCommand(SOCKET socket, char *path);
 
 void handleError(SOCKET clientSocket, const char *command);
 
 int shiftStrLeft(char *str, int num);
+
 
 int __cdecl main()
 {
@@ -167,6 +169,13 @@ int __cdecl main()
                     return 1;
                 }
             }
+            else if(strncmp(recvbuf, "rmdir ", 6) == 0) {
+                printf("%s\n", recvbuf);
+                if(handleRemoveDirectoryCommand(ClientSocket, recvbuf) == -1) {
+                    handleError(ClientSocket, "rmdir");
+                    return 1;
+                }
+            }
             else {
                 sendCmdDoesntExist(ClientSocket);
             }
@@ -194,8 +203,33 @@ int __cdecl main()
     return 0;
 }
 
+int handleRemoveDirectoryCommand(SOCKET clientSocket, char *path) {
+    shiftStrLeft(path, 6);
+
+    // Removes folder + all files inside of it recursively
+    try {
+        std::filesystem::remove_all(path);
+        std::string sendSuc = std::format("Directory {} was successfully removed!\f", path);
+
+        int iSendResult = send(clientSocket, sendSuc.c_str(), (int) sendSuc.length(), 0);
+        if(iSendResult == SOCKET_ERROR) {
+            fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+            closesocket(clientSocket);
+            WSACleanup();
+            return -1;
+        }
+
+    } catch (const std::error_code& e) {
+        fprintf(stderr, "Error removing directory: %s\n", e.message().c_str());
+        return -1;
+    }
+    return 1;
+}
+
 int handleMakeDirectoryCommand(SOCKET clientSocket, char *path) {
     shiftStrLeft(path, 6);
+
+    // Creates a directory if it doesn't exist already
     if(CreateDirectory(path, NULL) || ERROR_ALREADY_EXISTS == GetLastError())
     {
         std::string sendSuc = std::format("Directory {} was successfully created!\f", path);
@@ -344,8 +378,8 @@ void sendCmdDoesntExist(SOCKET ClientSocket) {
 }
 
 void handleError(SOCKET clientSocket, const char *command) {
-    std::string message = std::format("Error in performing {} with error code: {}\n", command, WSAGetLastError());
-    std::cerr << message;
+    std::string message = std::format("Error in performing {} with error code: {}", command, WSAGetLastError());
+    std::cerr << message << std::endl;
 
     message += '\f';
     int iSendResult = send(clientSocket, message.c_str(), (int) message.length(), 0);
