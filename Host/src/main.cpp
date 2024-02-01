@@ -49,7 +49,6 @@ void handleError(SOCKET clientSocket, const char *command);
 // Misc functions
 int shiftStrLeft(char *str, int num);
 
-
 int __cdecl main()
 {
     // Creates helper scripts

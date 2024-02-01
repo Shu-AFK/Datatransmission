@@ -70,7 +70,7 @@ Follow the steps below to install the project:
 
 5. **Run both files**
 
-    Lastly you can run the HostExec.exe file using:
+    Lastly you can run the HostExec.exe file using (please make sure to run with admin privileges):
 
     ```bash
     HostExec.exe
