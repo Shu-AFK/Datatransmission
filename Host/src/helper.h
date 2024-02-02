@@ -3,7 +3,7 @@
 
 #include <string>
 
-int create_scripts(char *port);
+int create_scripts(const char *port);
 int run_init();
 
 #endif //DATATRANSMISSION_HELPER_H

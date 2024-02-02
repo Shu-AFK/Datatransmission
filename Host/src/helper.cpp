@@ -1,10 +1,9 @@
 #include "helper.h"
 #include <fstream>
 #include <string>
-#include <algorithm>
 #include <filesystem>
 
-int create_scripts(char *port) {
+int create_scripts(const char *port) {
     std::ofstream OpenPortScript(R"(..\..\Host\src\scripts\OpenFirewallPort.bat)");
     std::ofstream  CheckIfOpenScript(R"(..\..\Host\src\scripts\CheckIfOpen.bat)");
 

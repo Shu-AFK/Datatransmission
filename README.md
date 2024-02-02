@@ -73,13 +73,13 @@ Follow the steps below to install the project:
     Lastly you can run the HostExec.exe file using (please make sure to run with admin privileges):
 
     ```bash
-    HostExec.exe
+    HostExec.exe [optional port]
    ```
    
     Now you can run the ReceiverExec.exe file using:
     
     ```bash
-    HostExec.exe
+    HostExec.exe [server IP] [optional port]
    ```
    
     And the connection should be established.
