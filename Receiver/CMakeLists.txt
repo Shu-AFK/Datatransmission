@@ -1,5 +1,7 @@
 # Receiver CMake file
-add_executable(ReceiverExec src/main.cpp)
+add_executable(ReceiverExec src/main.cpp
+        src/client.h
+        src/client.cpp)
 
 # Link against the Winsock library
 if(WIN32)

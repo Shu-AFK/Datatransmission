@@ -1,7 +1,9 @@
 # Host CMake file
 add_executable(HostExec src/main.cpp
         src/helper.h
-        src/helper.cpp)
+        src/helper.cpp
+        src/server.h
+        src/server.cpp)
 
 # Link against the Winsock library
 if(WIN32)
