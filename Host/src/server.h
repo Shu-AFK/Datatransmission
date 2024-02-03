@@ -5,8 +5,8 @@
 ls - List all files and directories in the current directory. //
 cd - Change current directory. //
 pwd - Print working directory. //
-cat - Concatenate and display the content of files.
-echo - Output the inputs.
+cat - Concatenate and display the content of files. //
+echo - Output the inputs. //
 mkdir - Create a new directory. //
 rmdir - Removes a directory. //
 rm - Remove files or empty directories. //
@@ -47,7 +47,7 @@ private:
     int recvbuflen = DEFAULT_BUFLEN;
 
     int handlePwdCommand();
-    void handleExitCommand();
+    static void handleExitCommand();
     int handleChangeDirectoryCommand(const char* path);
     int handleLsCommand(char *command);
     int sendCmdDoesntExist();
@@ -56,6 +56,8 @@ private:
     int handleRemoveDirectoryCommand(char *path);
     int handleRemoveFileCommand(char *fileName);
     int handleCopyCommand(char *fileName);
+    int handleCatCommand(char *command);
+    int handleEchoCommand(char *command) const;
 
     // Misc functions
     static int shiftStrLeft(char *str, int num);
@@ -94,7 +96,7 @@ public:
         log.close();
     }
 
-    void run();
+    int run();
 };
 
 #endif //DATATRANSMISSION_SERVER_H

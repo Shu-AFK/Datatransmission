@@ -15,12 +15,20 @@ int main(int argc, char **argv) {
         Server server(port);
 
         try {
-            server.run();
+            int res = server.run();
+
+            if(res == 1) {
+                std::ofstream log("log.txt", std::ios::app);
+                log << "Error in run function" << std::endl;
+                log.close();
+                std::cerr << "Error in run function" << std::endl;
+            }
         }
 
         catch (const std::runtime_error &e) {
             std::ofstream log("log.txt", std::ios::app);
             log << e.what() << std::endl;
+            log.close();
             std::cerr << e.what() << std::endl;
             return EXIT_FAILURE;
         }

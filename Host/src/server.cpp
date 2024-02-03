@@ -55,8 +55,22 @@ int Server::handleCommand(char* command) {
         return 0;
     }
     else if (strncmp(command, "copy_pc ", 8) == 0) {
-        if(handleCopyCommand(command) == -1){
+        if(handleCopyCommand(command) == -1) {
             handleError("copy_pc");
+            return 1;
+        }
+        return 0;
+    }
+    else if (strncmp(command, "cat ", 4) == 0) {
+        if(handleCatCommand(command) == -1) {
+            handleError("cat");
+            return 1;
+        }
+        return 0;
+    }
+    else if (strncmp(command, "echo ", 5) == 0) {
+        if(handleEchoCommand(command) == -1) {
+            handleError("echo");
             return 1;
         }
         return 0;
@@ -390,6 +404,31 @@ int Server::handleCopyCommand(char *fileName) {
     return 0;
 }
 
+int Server::handleCatCommand(char *command) {
+    shiftStrLeft(command, 4);
+
+    std::ifstream input(command);
+    if(!input)
+        return 1;
+
+    std::string file_contents;
+    char c;
+    while(input.get(c))
+        file_contents += c;
+
+    file_contents += '\f';
+    int iSendResult = send(ClientSocket, file_contents.c_str(), (int) file_contents.length(), 0);
+    if(iSendResult == SOCKET_ERROR) {
+        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+        input.close();
+        return -1;
+    }
+
+    input.close();
+    log << "SUCCESS!" << std::endl;
+    return 0;
+}
+
 int Server::shiftStrLeft(char *str, int num) {
     size_t len = strlen(str);
 
@@ -413,7 +452,7 @@ void Server::handleError(const char *command) const {
     throw std::runtime_error(message);
 }
 
-void Server::run() {
+int Server::run() {
     int res;
     do {
         memset(recvbuf, 0, sizeof(recvbuf));
@@ -422,6 +461,23 @@ void Server::run() {
 
         res = handleCommand(recvbuf);
         if(res == 1)
-            return;
+            return 1;
+        if(res == 2)
+            return 2;
     } while(true);
+}
+
+int Server::handleEchoCommand(char *command) const {
+    shiftStrLeft(command, 5);
+    std::cout << command << std::endl;
+
+    std::string sendMes = std::format("{} has been echoed\f", command);
+
+    int iSendResult = send(ClientSocket, sendMes.c_str(), (int)sendMes.length(), 0);
+    if (iSendResult == SOCKET_ERROR) {
+        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+        return -1;
+    }
+
+    return 0;
 }

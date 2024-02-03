@@ -13,6 +13,9 @@ int _cdecl main(int argc, char **argv)
         try {
             client.run();
         } catch(std::runtime_error &e) {
+            std::ofstream log("log.txt", std::ios::app);
+            log << e.what() << std::endl;
+            log.close();
             std::cerr << "Error: " << e.what() << std::endl;
         }
     }
