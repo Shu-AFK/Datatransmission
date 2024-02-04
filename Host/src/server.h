@@ -11,8 +11,8 @@ mkdir - Create a new directory. //
 rmdir - Removes a directory. //
 rm - Remove files or empty directories. //
 touch - Create an empty file. //
-mv - Move or rename files or directories.
-cp - Copy files or directories.
+mv - Move or rename files or directories. //
+cp - Copy files or directories. //
 find - Search for files in a directory hierarchy.
 grep - Search text using patterns.
 exit - Exit the shell. //
@@ -59,6 +59,7 @@ private:
     int handleCatCommand(char *command);
     int handleEchoCommand(char *command);
     int handleMoveCommand(char *command);
+    int handleCpCommand(char *command);
 
     // Misc functions
     static int shiftStrLeft(char *str, int num);

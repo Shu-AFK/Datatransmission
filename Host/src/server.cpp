@@ -119,6 +119,13 @@ int Server::handleCommand(char* command) {
         }
         return 0;
     }
+    else if(strncmp(command, "cp ", 3) == 0) {
+        if(handleCpCommand(command) == -1) {
+            handleError("cp");
+            return 1;
+        }
+        return 0;
+    }
     else {
         if(sendCmdDoesntExist()) {
             handleError("send");
@@ -804,6 +811,62 @@ int Server::handleMoveCommand(char *command) {
     }
     try {
         std::filesystem::remove(first_arg);
+    } catch (std::filesystem::filesystem_error &e) {
+        throw std::runtime_error(e.what());
+    }
+
+    std::string message = std::format("{} has successfully been moved to {}", first_arg, second_arg);
+    log << message << std::endl;
+    message += '\f';
+
+    int iSendResult = send(ClientSocket, message.c_str(), (int) message.length(), 0);
+    if(iSendResult == SOCKET_ERROR) {
+        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+        return -1;
+    }
+
+    return 0;
+}
+
+
+/**
+ * @brief Handles the "cp" command received from the client.
+ *
+ * @details
+ * This function handles the "cp" command received from the client. It expects the command
+ * string to be in the format "cp <source_file> <destination_file>". It copies the source
+ * file to the destination file using std::filesystem::copy function. If any error occurs,
+ * it throws a std::runtime_error with the error message.
+ *
+ * After successful copying, it writes a log entry with the source and destination file paths.
+ * Finally, it sends a success message to the client using the ClientSocket.
+ *
+ * @param command The command string received from the client.
+ *
+ * @return 0 if the operation is successful, -1 if a socket error occurs.
+ *
+ * @throws std::runtime_error if an error occurs during the file copying process.
+ */
+int Server::handleCpCommand(char *command) {
+    shiftStrLeft(command, 3);
+    std::string first_arg;
+    std::string second_arg;
+    bool second = false;
+
+    for(int i = 0, length = (int) strlen(command); i < length; i++) {
+        if(command[i] == ' ') {
+            second = true;
+            continue;
+        }
+
+        if (!second)
+            first_arg += command[i];
+        else
+            second_arg += command[i];
+    }
+
+    try {
+        std::filesystem::copy(first_arg, second_arg);
     } catch (std::filesystem::filesystem_error &e) {
         throw std::runtime_error(e.what());
     }
