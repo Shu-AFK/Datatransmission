@@ -1,24 +1,44 @@
+/*
+ *  Filename: server.h
+ *  Author: Floyd
+ *
+ *  The `Server` class is designed to encapsulate all logic and data needed
+ *  to manage a server in a client-server architecture. It implements
+ *  functionality to manage network communication, command handling and error handling.
+ *
+ *  Private member variables:
+ *  - DEFAULT_BUFLEN: Represents the default length for the receive buffer.
+ *  - ClientSocket and ListenSocket: Used to manage connections.
+ *  - log: Object to manage log file.
+ *  - wsaData: WSADATA object required for the use of Winsock2 library.
+ *  - port: String to store the port for the server to listen on.
+ *  - iResult: Integer used to store result values.
+ *  - result and ptr: Pointers to addrinfo structure for network communication management.
+ *  - hints: An addrinfo structure, which is used in network communication setup.
+ *  - recvbuf: Character buffer to store received data.
+ *  - recvbuflen: Integer to store the receive buffer length.
+ *
+ *  Private member methods:
+ *  - handlePwdCommand, handleExitCommand, handleChangeDirectoryCommand, handleLsCommand,
+ *    sendCmdDoesntExist, handleMakeDirectoryCommand, handleTouchFileCommand,
+ *    handleRemoveDirectoryCommand, handleRemoveFileCommand, handleCopyCommand, handleCatCommand,
+ *    handleEchoCommand, handleMoveCommand, handleCpCommand: These methods are implemented
+ *    to handle specific commands sent from a client to the server.
+ *  - shiftStrLeft: Helper utility function for string manipulation.
+ *  - handleError: Error handling methodology, encapsulated in a function.
+ *  - handleCommand: Function to parse received commands and call respective command handlers.
+ *  - initServer: Function to initialize server.
+ *  - setupPort: Function to set up the port for the server to listen on.
+ *
+ *  Public member variables:
+ *  - Constructor: Defines a constructor for the Server object, which takes a port number as an argument.
+ *    It also configures server parameters and throws an exception if something goes wrong.
+ *  - Destructor: Cleans up the resource used by the Server object such as closing sockets, freeing addrinfo, and cleaning up Winsock2 library.
+ *  - run: The main loop for the server operation. Continuously listens for incoming data and handles them.
+ */
+
 #ifndef DATATRANSMISSION_SERVER_H
 #define DATATRANSMISSION_SERVER_H
-
-/*
-ls - List all files and directories in the current directory. //
-cd - Change current directory. //
-pwd - Print working directory. //
-cat - Concatenate and display the content of files. //
-echo - Output the inputs. //
-mkdir - Create a new directory. //
-rmdir - Removes a directory. //
-rm - Remove files or empty directories. //
-touch - Create an empty file. //
-mv - Move or rename files or directories. //
-cp - Copy files or directories. //
-find - Search for files in a directory hierarchy.
-grep - Search text using patterns.
-exit - Exit the shell. //
-copy_pc - copy's a file to the client pc //
-*/
-
 
 #define WIN32_LEAN_AND_MEAN
 
@@ -32,6 +52,7 @@ copy_pc - copy's a file to the client pc //
 #include <filesystem>
 #include <iostream>
 #include <format>
+#include <regex>
 
 class Server {
 private:
