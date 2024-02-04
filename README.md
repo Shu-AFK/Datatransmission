@@ -129,6 +129,7 @@ Any contributions you make are **greatly appreciated**.
 
 Please explain any changes to the codebase in detail in your pull request and make sure
 you resolve any conflicts with the main branch before submitting the pull request.
+Also, please make sure to write good documentation for any feature added.
 
 
 ## License
