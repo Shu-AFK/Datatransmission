@@ -4,6 +4,16 @@
 
 static constexpr const char* DEFAULT_PORT = "27015";
 
+/**
+ * @brief The main function of the program.
+ *
+ * It initializes a Server object and runs it.
+ * If an error occurs during the server's execution, it is logged to a file and displayed on the console.
+ *
+ * @param argc The number of command-line arguments.
+ * @param argv An array of command-line arguments.
+ * @return The exit status of the program.
+ */
 int main(int argc, char **argv) {
     if(argc == 1 || argc == 2) {
         std::string port;

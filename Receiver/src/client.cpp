@@ -1,5 +1,15 @@
 #include "client.h"
 
+/**
+ * @brief Runs the client application.
+ *
+ * @details
+ * This function continuously prompts the user for a command, sends it to the server, and receives the response.
+ * The received response is printed to the console and logged in a file.
+ * If the response is "Connection closed", the function terminates the connection with the server and halts the loop.
+ *
+ * @note This function assumes that the necessary setup and connection to the server has already been performed.
+ */
 void Client::run() {
     while (true) {
         // Clears the strings
@@ -43,6 +53,17 @@ void Client::run() {
     }
 }
 
+/**
+ * @brief Initialize the Winsock library.
+ *
+ * @details
+ * This function initializes the Winsock library by calling WSAStartup.
+ * It sets the version of Winsock to be used (2.2) and loads the required
+ * DLLs. If the initialization fails, it throws a runtime_error with a
+ * descriptive message.
+ *
+ * @throw std::runtime_error Initialization of Winsock library failed.
+ */
 void Client::initWinsock() {
     iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (iResult != 0) {
@@ -50,6 +71,18 @@ void Client::initWinsock() {
     }
 }
 
+/**
+ * @brief Initializes a connection to the server.
+ *
+ * @details
+ * This function initializes a connection to the server specified by the server name and port number. It performs DNS
+ * resolution to obtain the server's address information, creates and connects a socket to the server, and stores the
+ * connected socket in the `ConnectSocket` member variable.
+ *
+ * @param server_name The name or IP address of the server to connect to.
+ *
+ * @throws std::runtime_error if getaddrinfo fails to obtain the server's address information.
+ */
 void Client::initServerConnection(const char *server_name) {
     ZeroMemory(&hints, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
@@ -68,6 +101,18 @@ void Client::initServerConnection(const char *server_name) {
     }
 }
 
+/**
+ * @brief Creates and connects a socket to a server.
+ *
+ * @details
+ * This function iterates through the list of address information
+ * structs and attempts to create and connect a socket for each
+ * address until a successful connection is made. It returns the
+ * connected socket or INVALID_SOCKET if no successful connection
+ * was made.
+ *
+ * @return The connected socket or INVALID_SOCKET.
+ */
 SOCKET Client::createAndConnectSocket() {
     for (ptr = result; ptr != NULL; ptr = ptr->ai_next) {
         ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
@@ -89,6 +134,23 @@ SOCKET Client::createAndConnectSocket() {
     return INVALID_SOCKET;  // return invalid socket if no connection was successful
 }
 
+/**
+ * @brief Shifts the provided string to the left by the specified number of characters.
+ *
+ * @details
+ * This function modifies the given string by removing the specified number of characters
+ * from the beginning (left side) of the string. The modified string will be stored back in
+ * the same variable.
+ *
+ * @param str The string to shift.
+ * @param num The number of characters to remove from the beginning of the string.
+ * @return Returns 0 if the operation is successful, otherwise returns 1.
+ *
+ * @note If the length of the string is larger than zero (empty string is not allowed)
+ *       and the specified number is less than the length of the string, the operation is
+ *       successful and the modified string is stored back in the same variable. Otherwise,
+ *       the operation fails and returns an error code.
+ */
 int Client::shiftStrLeft(std::string &str, int num) {
     size_t len = str.length();
 
@@ -100,6 +162,16 @@ int Client::shiftStrLeft(std::string &str, int num) {
         return 1;
 }
 
+/**
+ * @brief Sends data to the server.
+ *
+ * @details
+ * This function sends the specified command to the server using the given client socket.
+ *
+ * @param clientSocket The socket to send the data through.
+ * @param cmd The command to send.
+ * @return 0 if the data is successfully sent, -1 otherwise.
+ */
 int Client::sendData(SOCKET clientSocket, const std::string& cmd)
 {
     int iSendResult = send(clientSocket, cmd.c_str(), (int) cmd.length(), 0);
@@ -112,6 +184,25 @@ int Client::sendData(SOCKET clientSocket, const std::string& cmd)
     return 0;
 }
 
+/**
+ * @brief Receives data from the client socket.
+ *
+ * @details
+ * This function receives data from the client socket character by character until a special
+ * character '\f' is encountered. It stores the received data in a string 'ret'. If the received
+ * character is '\v', it indicates that a file is being sent. The function receives the file data
+ * and writes it to a file with the name specified in the 'cmd' parameter. The function returns
+ * appropriate messages based on the success or failure of the operation.
+ *
+ * @param clientSocket The socket to receive data from.
+ * @param cmd The name of the file to write if a file is received.
+ * @return Returns a string message indicating the success or failure of the operation.
+ *
+ * @note This function assumes that the client socket is already connected and active.
+ *       Upon successful file transfer, the function returns "File has been copied successfully!".
+ *       If the connection is closed before completing the transfer, it returns "Connection closed".
+ *       If any error occurs during the transfer, it returns an empty string.
+ */
 std::string Client::recvData(SOCKET clientSocket, std::string& cmd) {
     std::string ret;
     std::string file_contents;

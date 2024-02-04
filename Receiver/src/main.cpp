@@ -5,6 +5,23 @@
 #define DEFAULT_BUFLEN 512
 #define DEFAULT_PORT "27015"
 
+/*
+ * main
+ *
+ * It validates the command line parameters and creates an instance of
+ * the Client class. It then calls the run() method of the
+ * Client object. If any error occurs, it catches the
+ * std::runtime_error exception, logs the error message to
+ * a log file and displays it on the stderr.
+ *
+ * Parameters:
+ *   - argc: The number of command line parameters
+ *   - argv: An array of command line parameters
+ *
+ * Returns:
+ *   Returns 1 if the command line parameters are invalid,
+ *   otherwise it does not return.
+ */
 int _cdecl main(int argc, char **argv)
 {
     // Validate the parameters

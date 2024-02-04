@@ -57,7 +57,8 @@ private:
     int handleRemoveFileCommand(char *fileName);
     int handleCopyCommand(char *fileName);
     int handleCatCommand(char *command);
-    int handleEchoCommand(char *command) const;
+    int handleEchoCommand(char *command);
+    int handleMoveCommand(char *command);
 
     // Misc functions
     static int shiftStrLeft(char *str, int num);

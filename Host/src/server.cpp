@@ -1,5 +1,22 @@
 #include "server.h"
 
+/**
+ * @brief Handles the command received from the client.
+ *
+ * @details
+ * This function receives a command from the client and performs the corresponding operation.
+ * The function checks the command against a list of supported commands and calls the appropriate
+ * handler function for each command. If the command is not recognized, an error message is sent
+ * back to the client. The result of the command execution is returned as an integer value.
+ *
+ * @note It is assumed that the Server class has been properly initialized before calling this function.
+ *
+ * @param command The command received from the client.
+ * @return An integer value representing the result of the command execution:
+ *         - 0: The command was handled successfully.
+ *         - 1: An error occurred while executing the command.
+ *         - 2: The exit command was received.
+ */
 int Server::handleCommand(char* command) {
     if (strncmp(command, "pwd", 3) == 0) {
         if(handlePwdCommand() == -1) {
@@ -75,6 +92,33 @@ int Server::handleCommand(char* command) {
         }
         return 0;
     }
+    else if(strncmp(command, "mv ", 3) == 0) {
+        std::string first_arg;
+        std::string second_arg;
+        int space_counter = 0;
+
+        for(int i = 0, len = (int) strlen(command); i < len; i++) {
+            if(command[i] == ' ') {
+                space_counter++;
+                continue;
+            }
+
+            if(space_counter == 1)
+                first_arg += command[i];
+            if(space_counter == 2)
+                second_arg += command[i];
+        }
+
+        if(space_counter != 2) {
+            handleError("mv");
+            return 1;
+        }
+        if(handleMoveCommand(command) == -1) {
+            handleError("mv");
+            return 1;
+        }
+        return 0;
+    }
     else {
         if(sendCmdDoesntExist()) {
             handleError("send");
@@ -84,6 +128,18 @@ int Server::handleCommand(char* command) {
     }
 }
 
+/**
+ * @brief Set up the server port by creating helper scripts and running initialization scripts.
+ *
+ * @details
+ * This function creates helper scripts by calling the `create_scripts` function with the provided port.
+ * If creating the scripts fails, it logs an error message and returns false.
+ *
+ * Then, it runs the initialization scripts by calling the `run_init` function.
+ * If running the scripts fails, it logs an error message and returns false.
+ *
+ * @return true if the server port is successfully set up, false otherwise.
+ */
 bool Server::setupPort(){
     // Creates helper scripts
     if(create_scripts(port.c_str()) != 0) {
@@ -98,6 +154,29 @@ bool Server::setupPort(){
     return true;
 }
 
+/**
+ * @brief Initializes the server.
+ *
+ * @details
+ * This function initializes the server by performing the following steps:
+ * 1. Calls WSAStartup to initialize the Winsock library.
+ * 2. Checks for any errors during the initialization process and returns false if there is an error.
+ * 3. Sets up the server address and port using getaddrinfo.
+ * 4. Checks for any errors in resolving the address and returns false if there is an error.
+ * 5. Creates a socket for the server to listen for client connections.
+ * 6. Checks for any errors in creating the socket and returns false if there is an error.
+ * 7. Binds the socket to the server address and port.
+ * 8. Checks for any errors in binding the socket and returns false if there is an error.
+ * 9. Frees the memory allocated for the address information.
+ * 10. Listens for client connections on the socket.
+ * 11. Checks for any errors in listening for client connections and returns false if there is an error.
+ * 12. Accepts a client socket.
+ * 13. Checks for any errors in accepting the client socket and returns false if there is an error.
+ * 14. Closes the listening socket.
+ * 15. Returns true to indicate successful initialization.
+ *
+ * @return bool - true if the server is successfully initialized, false otherwise.
+ */
 bool Server::initServer() {
     iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
     if(iResult != 0) {
@@ -160,6 +239,16 @@ bool Server::initServer() {
     return true;
 }
 
+/**
+ * @brief Handle the "pwd" command by sending the current directory to the client.
+ *
+ * @details
+ * The current directory on the server is obtained using std::filesystem::current_path().
+ * The current directory is then sent to the client through the socket connection.
+ * If the send operation fails, an error message is printed and -1 is returned.
+ *
+ * @return 0 if the command is handled successfully, -1 otherwise.
+ */
 int Server::handlePwdCommand() {
     std::string cwd = std::filesystem::current_path().string();
     printf("Current directory on server: %s\n", cwd.c_str());
@@ -175,10 +264,30 @@ int Server::handlePwdCommand() {
     return 0;
 }
 
+/**
+ * @brief Handles the exit command and closes the connection.
+ *
+ * This function is called when the client issues an exit command. It prints
+ * a message indicating that the connection is being closed.
+ *
+ * @note This function does not handle any return values or exceptions.
+ */
 void Server::handleExitCommand() {
     printf("Closing connection...\n");
 }
 
+/**
+ * @brief Changes the working directory of the server.
+ *
+ * @details
+ * This function changes the current working directory of the server to the specified path.
+ * If the path is valid and the directory is successfully changed, a success message is sent
+ * back to the client. If an error occurs while changing the directory, an error message is
+ * sent back to the client.
+ *
+ * @param path The path of the directory to change to.
+ * @return 0 if the directory was successfully changed, -1 otherwise.
+ */
 int Server::handleChangeDirectoryCommand(const char *path) {
     try {
         std::filesystem::current_path(path);
@@ -216,6 +325,25 @@ int Server::handleChangeDirectoryCommand(const char *path) {
     }
 }
 
+/**
+ * @brief Handles the "ls" command.
+ *
+ * @details
+ * This function handles the "ls" command, which lists the contents of a directory.
+ * It sends the directory listing to the client socket.
+ *
+ * @param command The command string received from the client.
+ *
+ * @return 0 if the operation is successful, -1 if an error occurs.
+ *
+ * @note The function assumes that the command parameter is either "ls" or "ls <directory>".
+ *       If the command is "ls", the function will list the contents of the current directory.
+ *       If the command is "ls <directory>", the function will list the contents of the specified directory.
+ *       The function uses the ClientSocket member variable to send data to the client.
+ *       The function also uses the log member variable to log success or failure of the operation.
+ *       The function relies on the shiftStrLeft function to remove the "ls " prefix from the command.
+ *       The function uses the std::filesystem library to perform directory operations.
+ */
 int Server::handleLsCommand(char *command) {
     std::string prevDirectory;
     std::string cwd;
@@ -272,6 +400,15 @@ int Server::handleLsCommand(char *command) {
     }
 }
 
+/**
+ * @brief Sends an error message to the client indicating that the command doesn't exist.
+ *
+ * @details
+ * This function constructs an error message "The command doesn't exist" and sends it to the client.
+ * The error message is also printed to the standard error stream and logged to the log file.
+ *
+ * @return int - Returns 0 if the error message is successfully sent, -1 otherwise.
+ */
 int Server::sendCmdDoesntExist() {
     std::string sendBuf = "The command doesn't exist";
     std::cerr << sendBuf << std::endl;
@@ -287,6 +424,23 @@ int Server::sendCmdDoesntExist() {
     return 0;
 }
 
+/**
+ * @brief Handles the "Make Directory" command.
+ *
+ * @details
+ * This method creates a directory with the given path if it doesn't already exist.
+ * It then sends a success message to the client and logs the success.
+ *
+ * @param path The path of the directory to be created.
+ *
+ * @returns 0 if the directory is successfully created, -1 otherwise.
+ *
+ * @note The path parameter should be a valid null-terminated C string.
+ *       The function assumes that the initial 6 characters of the path are to be ignored.
+ *       If the CreateDirectory function call fails, the function returns -1.
+ *       Otherwise, it sends a success message to the client using the ClientSocket
+ *       and logs the success message to the log file.
+ */
 int Server::handleMakeDirectoryCommand(char *path) {
     shiftStrLeft(path, 6);
 
@@ -307,6 +461,19 @@ int Server::handleMakeDirectoryCommand(char *path) {
         return -1;
 }
 
+/**
+ * @brief Handles the touch file command received from the client.
+ *
+ * @details
+ * This function handles the touch file command received from the client. It creates a new file with the specified
+ * file name. If the file creation is successful, it sends a success message to the client, otherwise it returns an
+ * error code. It also logs the result in the server's log file.
+ *
+ * @param fileName The name of the file to be created.
+ *
+ * @returns 0 if the file is successfully created and the success message is sent to the client,
+ *          -1 if there is an error while creating the file or sending the success message.
+ */
 int Server::handleTouchFileCommand(char *fileName) {
     shiftStrLeft(fileName, 6);
 
@@ -330,6 +497,22 @@ int Server::handleTouchFileCommand(char *fileName) {
     return 0;
 }
 
+/**
+ * @brief Handles the remove directory command.
+ *
+ * @details
+ * This function removes a directory and all the files inside it recursively.
+ * It first shifts the given path to remove the command prefix. Then it attempts
+ * to remove the directory using std::filesystem::remove_all. If the removal
+ * is successful, it sends a success message to the client using the ClientSocket.
+ * If an error occurs during the removal or sending the success message, an error
+ * is printed to stderr and the function returns -1. Otherwise, it logs the
+ * successful removal and returns 0.
+ *
+ * @param path The path of the directory to remove.
+ *
+ * @return 0 if the removal is successful, -1 otherwise.
+ */
 int Server::handleRemoveDirectoryCommand(char *path) {
     shiftStrLeft(path, 6);
 
@@ -353,6 +536,19 @@ int Server::handleRemoveDirectoryCommand(char *path) {
     return 0;
 }
 
+/**
+ * @brief Handles the remove file command.
+ *
+ * @details
+ * This function attempts to remove the specified file. It shifts the file name left
+ * by 3 positions to remove the command prefix. If the file is successfully removed,
+ * a success message is sent to the client. If there is an error removing the file,
+ * an error message is sent to the client.
+ *
+ * @param fileName The name of the file to be removed.
+ *
+ * @returns 0 if the file is successfully removed, -1 if there is an error.
+ */
 int Server::handleRemoveFileCommand(char *fileName) {
     shiftStrLeft(fileName, 3);
 
@@ -379,6 +575,20 @@ int Server::handleRemoveFileCommand(char *fileName) {
     return 0;
 }
 
+/**
+ * @brief Handles the `copy` command by sending the contents of a file to the client.
+ *
+ * @details
+ * This function takes a file name provided by the client and sends its contents
+ * to the client. It first opens the file and reads its contents into a buffer.
+ * The contents are then sent to the client over the network connection.
+ * If any errors occur during the process, appropriate error messages will be printed,
+ * and the function will return -1 to indicate failure.
+ *
+ * @param fileName The name of the file to be sent to the client.
+ *
+ * @return 0 if the operation is successful, -1 otherwise.
+ */
 int Server::handleCopyCommand(char *fileName) {
     shiftStrLeft(fileName, 8);
 
@@ -404,6 +614,19 @@ int Server::handleCopyCommand(char *fileName) {
     return 0;
 }
 
+/**
+ * @brief Handles the "cat" command by sending the contents of a file to the client socket.
+ *
+ * @param command The command containing the filename to read.
+ *
+ * @return 0 if the operation is successful, -1 if an error occurs, 1 if the file does not exist.
+ *
+ * @note The function will shift the command string to remove the "cat " prefix.
+ *       It will then attempt to open the file and read its contents.
+ *       If the file exists, its contents will be sent to the client socket.
+ *       If an error occurs during the send operation, -1 will be returned.
+ *       If the file does not exist, 1 will be returned.
+ */
 int Server::handleCatCommand(char *command) {
     shiftStrLeft(command, 4);
 
@@ -429,6 +652,22 @@ int Server::handleCatCommand(char *command) {
     return 0;
 }
 
+/**
+ * @brief Shifts a given string to the left by a specified number of positions.
+ *
+ * @details
+ * This function takes a character array and shifts it left by the specified
+ * number of positions. The shifted string will overwrite the original string.
+ *
+ * @param str The string to be shifted left.
+ * @param num The number of positions to shift the string.
+ *
+ * @returns 0 if the operation is successful, 1 otherwise.
+ *
+ * @note The number of positions to shift (num) must be less than the length of the string.
+ *       If the string is empty or num is greater than the length of the string, the
+ *       function will return 1 to indicate an error.
+ */
 int Server::shiftStrLeft(char *str, int num) {
     size_t len = strlen(str);
 
@@ -440,6 +679,16 @@ int Server::shiftStrLeft(char *str, int num) {
         return 1;
 }
 
+/**
+ * @brief Handle error that occurred during command execution.
+ *
+ * @details
+ * This function is called when an error occurs while performing a command.
+ * It logs the error message to std::cerr, sends the error message to the client
+ * and throws a std::runtime_error with the error message.
+ *
+ * @param command The command that caused the error.
+ */
 void Server::handleError(const char *command) const {
     std::string message = std::format("Error in performing {} with error code: {}", command, WSAGetLastError());
     std::cerr << message << std::endl;
@@ -452,6 +701,17 @@ void Server::handleError(const char *command) const {
     throw std::runtime_error(message);
 }
 
+/**
+ * @brief Runs the server and continuously receives and handles commands from the client
+ *
+ * @details
+ * The run() function is responsible for running the server and continuously receiving and handling commands from the client.
+ * It uses a do-while loop to keep receiving commands until it receives a return value of 1 or 2 from the handleCommand() function.
+ *
+ * @return An integer representing the exit status of the server:
+ *         - 1: If there was an error in handling the command
+ *         - 2: If the "exit" command was received from the client
+ */
 int Server::run() {
     int res;
     do {
@@ -467,14 +727,93 @@ int Server::run() {
     } while(true);
 }
 
-int Server::handleEchoCommand(char *command) const {
+/**
+ * @brief Handles the echo command received from the client.
+ *
+ * @details
+ * This function trims the "echo " prefix from the command, prints the command to the console,
+ * writes the command to the log file, and sends a response to the client that the command has been echoed.
+ *
+ * @param command The command received from the client.
+ * @return Returns 0 on success, -1 if the send operation fails.
+ */
+int Server::handleEchoCommand(char *command) {
     shiftStrLeft(command, 5);
     std::cout << command << std::endl;
+    log << command << std::endl;
 
     std::string sendMes = std::format("{} has been echoed\f", command);
 
     int iSendResult = send(ClientSocket, sendMes.c_str(), (int)sendMes.length(), 0);
     if (iSendResult == SOCKET_ERROR) {
+        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+        return -1;
+    }
+
+    return 0;
+}
+
+/**
+ * @function handleMoveCommand
+ * @brief Handles the move command from the client.
+ *
+ * @details
+ * This function is responsible for handling a "move" command from a client. It takes a command in
+ * the form of a character array, extracts the desired source and destination file paths, and then
+ * attempts to move the file from the source path to the destination path.
+ *
+ * The move operation is achieved by first copying the file from the source path to the destination
+ * path using `std::filesystem::copy`. Then the function tries to remove the original file
+ * at the source path using `std::filesystem::remove`. If any of these operations fail, a
+ * `std::runtime_error` is thrown with a message explaining the error.
+ *
+ * After successfully moving the file, a confirmation message is sent back to the client.
+ * If the send operation fails, an error message is printed to stderr and the function returns -1.
+ *
+ * @param command A character array containing the move command from the client.
+ *
+ * @return Returns 0 if the move command was successfully executed and the confirmation message
+ * was sent back to the client. If there was an error in sending the confirmation message, the
+ * function returns -1.
+ *
+ * @exception std::runtime_error If either the copy or remove operations fail, a
+ * std::runtime_error is thrown with a message explaining the error.
+ */
+int Server::handleMoveCommand(char *command) {
+    shiftStrLeft(command, 3);
+    std::string first_arg;
+    std::string second_arg;
+    bool second = false;
+
+    for(int i = 0, length = (int) strlen(command); i < length; i++) {
+        if(command[i] == ' ') {
+            second = true;
+            continue;
+        }
+
+        if (!second)
+            first_arg += command[i];
+        else
+            second_arg += command[i];
+    }
+
+    try {
+        std::filesystem::copy(first_arg, second_arg);
+    } catch (std::filesystem::filesystem_error &e) {
+        throw std::runtime_error(e.what());
+    }
+    try {
+        std::filesystem::remove(first_arg);
+    } catch (std::filesystem::filesystem_error &e) {
+        throw std::runtime_error(e.what());
+    }
+
+    std::string message = std::format("{} has successfully been moved to {}", first_arg, second_arg);
+    log << message << std::endl;
+    message += '\f';
+
+    int iSendResult = send(ClientSocket, message.c_str(), (int) message.length(), 0);
+    if(iSendResult == SOCKET_ERROR) {
         fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
         return -1;
     }
