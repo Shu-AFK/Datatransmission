@@ -81,6 +81,8 @@ private:
     int handleEchoCommand(char *command);
     int handleMoveCommand(char *command);
     int handleCpCommand(char *command);
+    int handleFindCommand(char *command);
+    int handleGrepCommand(char *command);
 
     // Misc functions
     static int shiftStrLeft(char *str, int num);

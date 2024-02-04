@@ -126,6 +126,20 @@ int Server::handleCommand(char* command) {
         }
         return 0;
     }
+    else if(strncmp(command, "find ", 5) == 0) {
+        if(handleFindCommand(command) == -1) {
+            handleError("find");
+            return 1;
+        }
+        return 0;
+    }
+    else if(strncmp(command, "grep ", 5) == 0) {
+        if (handleGrepCommand(command) == -1) {
+            handleError("grep");
+            return 1;
+        }
+        return 0;
+    }
     else {
         if(sendCmdDoesntExist()) {
             handleError("send");
@@ -876,6 +890,107 @@ int Server::handleCpCommand(char *command) {
     message += '\f';
 
     int iSendResult = send(ClientSocket, message.c_str(), (int) message.length(), 0);
+    if(iSendResult == SOCKET_ERROR) {
+        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+        return -1;
+    }
+
+    return 0;
+}
+
+/**
+ * @brief Handles the "find" command.
+ *
+ * @details
+ * This function searches for a file or directory in the current directory
+ * and sends a response with the search result to the client.
+ *
+ * @param command The command string received from the client.
+ * @return 0 if the operation is successful, -1 if an error occurs during sending the response.
+ */
+int Server::handleFindCommand(char *command) {
+    shiftStrLeft(command, 5);
+    std::string message;
+    bool found = false;
+
+    for (const auto &entry : std::filesystem::recursive_directory_iterator
+    (std::filesystem::current_path())) {
+        if(entry.path().filename() == command) {
+            message = std::format("{} is in {}", command, entry.path().string());
+            log << message << std::endl;
+            found = true;
+        }
+    }
+
+    if(!found) {
+        message = std::format("{} has not been found in {}", command, std::filesystem::current_path().string());
+        log << message << std::endl;
+    }
+
+    message += '\f';
+    int iSendResult = send(ClientSocket, message.c_str(), (int) message.length(), 0);
+    if(iSendResult == SOCKET_ERROR) {
+        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+        return -1;
+    }
+
+    return 0;
+}
+
+/**
+ * @brief Handles the 'grep' command.
+ *
+ * @details
+ * This function reads a file, line by line, and searches for a specified pattern using regular expressions.
+ * If a line matches the pattern, it prints the line number and the line itself.
+ * It also sends the matching lines to the client and logs them to a file.
+ *
+ * @param command The command entered by the client, which includes the file name and the pattern to search for.
+ *
+ * @returns 0 on success, -1 on failure.
+ */
+int Server::handleGrepCommand(char *command) {
+    std::string fileName;
+    std::string pattern;
+    bool second = false;
+
+    shiftStrLeft(command, 5);
+    for(int i = 0, length = (int) strlen(command); i < length; i++) {
+        if (command[i] == ' ') {
+            second = true;
+            continue;
+        }
+
+        if (!second)
+            fileName += command[i];
+        else
+            pattern += command[i];
+    }
+
+    std::ifstream file(fileName);
+    if(!file) {
+        std::cerr << "Error in opening " << fileName << std::endl;
+        return -1;
+    }
+
+    // Regular expression
+    std::regex regexp(pattern);
+
+    // Read file line by line and apply regex
+    std::string line;
+    std::string sendMessage;
+    int line_number = 0;
+    while (std::getline(file, line)) {
+        line_number++;
+        if (std::regex_search(line, regexp)) {
+            std::cout << line_number << ": " << line << '\n';
+            sendMessage += std::to_string(line_number) + ": " + line + '\n';
+            log << sendMessage << std::endl;
+        }
+    }
+
+    sendMessage += '\f';
+    int iSendResult = send(ClientSocket, sendMessage.c_str(), (int) sendMessage.length(), 0);
     if(iSendResult == SOCKET_ERROR) {
         fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
         return -1;
