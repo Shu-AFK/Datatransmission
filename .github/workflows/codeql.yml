@@ -18,10 +18,10 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3 # this version needs to be updated according to the latest version stated in the actions/checkout repository
       
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v1
+      uses: github/codeql-action/init@v2
       with:
         languages: 'cpp'
 
@@ -33,4 +33,4 @@ jobs:
         cmake --build .
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v1
+      uses: github/codeql-action/analyze@v2
