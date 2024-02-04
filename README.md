@@ -19,7 +19,41 @@ use basic shell commands to traverse the host pc, even transferring files from t
     find - Search for files in a directory hierarchy.
     grep - Search text using patterns.
     exit - Exit the shell. 
-    copy_pc - copy's a file to the client pc
+    copy_to - copy's a file to the client pc
+
+## Unix Command Descriptions
+
+Below are descriptions of several commonly-used Unix commands:
+
+- `ls`: This command lists all files and directories in the current directory. Example usage: `ls` or to list the files and directories in some other directory: `ls /path/to/directory`.
+
+- `cd`: This command changes the current directory to the one specified. Example usage: `cd /path/to/directory`.
+
+- `pwd`: This command prints the working directory, i.e., the directory you are currently within. Example usage: `pwd`.
+
+- `cat`: This command concatenates and displays the content of files. Example usage: `cat my_file.txt`.
+
+- `echo`: This command outputs the inputs. Example usage: `echo Hello, World!`.
+
+- `mkdir`: This command creates a new directory. Example usage: `mkdir new_directory`.
+
+- `rmdir`: This command removes a directory. However, it only removes empty directories. Example usage: `rmdir /path/to/directory`.
+
+- `rm`: This command removes files or directories. Example usage: `rm my_file.txt`.
+
+- `touch`: This command creates an empty file. Example usage: `touch new_file.txt`.
+
+- `mv`: This command moves or renames files or directories. Example usage: `mv old_name.txt new_name.txt` or `mv file /path/to/new/location`.
+
+- `cp`: This command copies files or directories. Example usage: `cp source_file target_file`.
+
+- `find`: This command searches for files in a directory hierarchy. Example usage: `find . -name my_file.txt`.
+
+- `grep`: This command searches text using patterns. Example usage: `grep "my pattern" file.txt`.
+
+- `exit`: This command exits the shell. Simply type `exit` and hit enter.
+
+- `copy_to`: This command copies a file to the client's PC. Example usage: `copy_to file.txt`.
 
 ## How it works:
 The server and the client engage in a tcp socket connection. Once the connection is established, a basic shell is 

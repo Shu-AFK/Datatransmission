@@ -71,7 +71,7 @@ int Server::handleCommand(char* command) {
         }
         return 0;
     }
-    else if (strncmp(command, "copy_pc ", 8) == 0) {
+    else if (strncmp(command, "copy_to ", 8) == 0) {
         if(handleCopyCommand(command) == -1) {
             handleError("copy_pc");
             return 1;
