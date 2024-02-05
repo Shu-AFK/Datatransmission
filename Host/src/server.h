@@ -83,11 +83,13 @@ private:
     int handleCpCommand(char *command);
     int handleFindCommand(char *command);
     int handleGrepCommand(char *command);
+    int handleCopyFromCommand(char *command);
 
     // Misc functions
     static int shiftStrLeft(char *str, int num);
     void handleError(const char *command) const;
     int handleCommand(char *command);
+    void handleTimeout();
 
     bool initServer();
     bool setupPort();

@@ -1,16 +1,20 @@
+#include <format>
 #include "client.h"
 
+
 /**
- * @brief Runs the client application.
+ * @brief Runs the client program.
  *
  * @details
- * This function continuously prompts the user for a command, sends it to the server, and receives the response.
- * The received response is printed to the console and logged in a file.
- * If the response is "Connection closed", the function terminates the connection with the server and halts the loop.
- *
- * @note This function assumes that the necessary setup and connection to the server has already been performed.
+ * This function is responsible for the main execution of the client program.
+ * It takes user input, sends commands to the server, receives responses,
+ * and handles file transfers. It also logs the commands and responses.
+ * The function runs an infinite loop until the user explicitly closes
+ * the connection or an error occurs.
  */
 void Client::run() {
+    bool isCopyFrom = false;
+
     while (true) {
         // Clears the strings
         std::string command;
@@ -18,12 +22,55 @@ void Client::run() {
         std::getline(std::cin, command);
         log << "shell $ " << command << std::endl;
 
+        // Checks if the typed command is copy_from, due to it needing different procedure
+        if(strncmp(command.c_str(), "copy_from ", 10) == 0)
+            isCopyFrom = true;
+
         // send command to server
         int iSendResult = sendData(ConnectSocket, command);
         if(iSendResult == -1) {
             std::string errorMessage = "Failed to send data, error: " + std::to_string(WSAGetLastError());
             log << errorMessage << std::endl;
             throw std::runtime_error(errorMessage);
+        }
+
+        if(isCopyFrom) {
+            shiftStrLeft(command, 10);
+
+            std::ifstream input(command);
+            if(!input) {
+                std::string errorMessage = "Failed to open file";
+                std::cerr << errorMessage << std::endl;
+                throw std::runtime_error(errorMessage);
+            }
+
+            // Sends the file send sequence
+            iSendResult = send(ConnectSocket, "\v\v", 2, 0);
+            if(iSendResult == SOCKET_ERROR) {
+                std::string errormsg = std::format("Failed to send file send sequence, error: {}", std::to_string(WSAGetLastError()));
+                std::cerr << errormsg << std::endl;
+                throw std::runtime_error(errormsg);
+            }
+
+            std::string row;
+            while(std::getline(input, row)) {
+                row += '\n';
+                iSendResult = send(ConnectSocket, row.c_str(), (int) row.length(), 0);
+                if(iSendResult == SOCKET_ERROR) {
+                    std::string errormsg = std::format("Failed to send file content, error: {}", std::to_string(WSAGetLastError()));
+                    std::cerr << errormsg << std::endl;
+                    throw std::runtime_error(errormsg);
+                }
+            }
+
+            // Sends the end sequence
+            char endMark = '\f';
+            iSendResult = send(ConnectSocket, &endMark, 1, 0);
+            if(iSendResult == SOCKET_ERROR) {
+                std::string errormsg = std::format("Failed to send file send end sequence, error: {}", std::to_string(WSAGetLastError()));
+                std::cerr << errormsg << std::endl;
+                throw std::runtime_error(errormsg);
+            }
         }
 
         // read response from server

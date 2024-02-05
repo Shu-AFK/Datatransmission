@@ -1,3 +1,4 @@
+#include <chrono>
 #include "server.h"
 
 /**
@@ -21,6 +22,18 @@ int Server::handleCommand(char* command) {
     if (strncmp(command, "pwd", 3) == 0) {
         if(handlePwdCommand() == -1) {
             handleError("pwd");
+            return 1;
+        }
+        return 0;
+    }
+    else if(strncmp(command, "copy_from ", 10) == 0) {
+        int res = handleCopyFromCommand(command);
+        if(res == -1) {
+            handleError("copy_from");
+            return 1;
+        }
+        else if(res == -2) { // Time out return
+            handleTimeout();
             return 1;
         }
         return 0;
@@ -771,6 +784,7 @@ int Server::handleEchoCommand(char *command) {
         return -1;
     }
 
+    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
@@ -839,6 +853,7 @@ int Server::handleMoveCommand(char *command) {
         return -1;
     }
 
+    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
@@ -895,6 +910,7 @@ int Server::handleCpCommand(char *command) {
         return -1;
     }
 
+    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
@@ -934,6 +950,7 @@ int Server::handleFindCommand(char *command) {
         return -1;
     }
 
+    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
@@ -996,5 +1013,108 @@ int Server::handleGrepCommand(char *command) {
         return -1;
     }
 
+    log << "SUCCESS!" << std::endl;
     return 0;
+}
+
+/**
+ * @brief Handles the CopyFrom command.
+ *
+ * @details
+ * This function is called to handle the CopyFrom command received from the client.
+ * It receives the file content from the client and saves it to a file with the given
+ * filename. It then sends a success message back to the client.
+ *
+ * @param command The command string received from the client.
+ *
+ * @return 0 if the operation is successful, -1 if there is an error with the connection,
+ *         -2 if there is a timeout or error in sending the file.
+ */
+int Server::handleCopyFromCommand(char *command) {
+    shiftStrLeft(command, 10);
+
+    std::string filename = command;
+    std::string fileContent;
+    char recvbyte;
+    auto timeStart = std::chrono::system_clock::now();;
+    bool sequenceStart = false;
+    // Get the whole file content
+    do {
+        iResult = recv(ClientSocket, &recvbyte, 1, 0);
+        if(iResult > 0) {
+            auto elapsedSeconds = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - timeStart).count();
+
+            // Gets the file content if the
+            if(sequenceStart) {
+                if(elapsedSeconds >= 500) // Timed out or error in sending file
+                    return -2;
+                if(recvbyte == '\f')
+                    break;
+                fileContent += recvbyte;
+                continue;
+            }
+
+            // Checks for the file transmit start sequence
+            if(recvbyte == '\v') {
+                iResult = recv(ClientSocket, &recvbyte, 1, 0);
+                if(recvbyte > 0) {
+                    if(recvbyte == '\v')
+                        sequenceStart = true;
+                }
+                else if(recvbyte <= 0)
+                    return -1; // Connection closed or error
+            }
+
+            if(elapsedSeconds >= 10) // Checks if connection timed out
+                return -2;
+        }
+        else if(recvbyte <= 0) // Connection closed or error
+            return -1;
+    } while(true);
+
+    std::ofstream output(filename);
+    if(!output) {
+        std::cerr << "Error in opening " << filename << std::endl;
+        log << "Error in opening " << filename << std::endl;
+        return -1;
+    }
+
+    // Writes the transmitted file content into the output file
+    output << fileContent;
+    output.close();
+
+    std::string sendmsg = std::format("{} was successfully created!", filename);
+    log << sendmsg << std::endl;
+    sendmsg += '\f';
+
+    int iSendResult = send(ClientSocket, sendmsg.c_str(), (int) sendmsg.length(), 0);
+    if(iSendResult == SOCKET_ERROR) {
+        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+        return -1;
+    }
+
+    log << "SUCCESS!" << std::endl;
+    return 0;
+}
+
+/**
+ * @brief Handles the timeout event by sending a failure message to the client.
+ *
+ * @details
+ * This function is invoked when the server receives a timeout event. It sends a failure message
+ * to the client indicating that their request has timed out. The failure message is logged to the
+ * log file and printed to the standard error output. The message is then sent to the client using
+ * the ClientSocket. If the send operation encounters an error, an exception is thrown.
+ */
+void Server::handleTimeout() {
+    std::string sendFail = "Your request timed out!";
+    log << sendFail << std::endl;
+    std::cerr << sendFail << std::endl;
+    sendFail += '\f';
+
+    int iSendResult = send(ClientSocket, sendFail.c_str(), (int) sendFail.length(), 0);
+    if(iSendResult == SOCKET_ERROR) {
+        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+        throw std::runtime_error("Error in sending message!");
+    }
 }

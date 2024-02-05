@@ -20,8 +20,9 @@ use basic shell commands to traverse the host pc, even transferring files from t
     grep - Search text using patterns.
     exit - Exit the shell. 
     copy_to - copy's a file to the client pc
+    copy_from - copy's a file from the client pc to the server
 
-## Unix Command Descriptions
+## Unix( + extra) Command Descriptions
 
 Below are descriptions of several commonly-used Unix commands:
 
@@ -54,6 +55,8 @@ Below are descriptions of several commonly-used Unix commands:
 - `exit`: This command exits the shell. Simply type `exit` and hit enter.
 
 - `copy_to`: This command copies a file to the client's PC. Example usage: `copy_to file.txt`.
+
+- `copy_from`: this command copies a file from the client's PC to the server. Example usage: `copy_from file.txt`.
 
 ## How it works:
 The server and the client engage in a tcp socket connection. Once the connection is established, a basic shell is 
