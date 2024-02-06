@@ -19,8 +19,10 @@ use basic shell commands to traverse the host pc, even transferring files from t
     find - Search for files in a directory hierarchy.
     grep - Search text using patterns.
     exit - Exit the shell. 
-    copy_to - copy's a file to the client pc
-    copy_from - copy's a file from the client pc to the server
+    copy_to - copy's a file to the client pc.
+    copy_from - copy's a file from the client pc to the server.
+    move_startup - runs the host executable on startup.
+    remove_startup - reverts the previous command.
 
 ## Unix( + extra) Command Descriptions
 
@@ -57,6 +59,10 @@ Below are descriptions of several commonly-used Unix commands:
 - `copy_to`: This command copies a file to the client's PC. Example usage: `copy_to file.txt`.
 
 - `copy_from`: this command copies a file from the client's PC to the server. Example usage: `copy_from file.txt`.
+
+- `move_startup`: This command runs the host executable on startup. Usage: `move_startup`.
+
+- `remove_startup`: This command reverts the previous command. Usage: `remove_startup`.
 
 ## How it works:
 The server and the client engage in a tcp socket connection. Once the connection is established, a basic shell is 
