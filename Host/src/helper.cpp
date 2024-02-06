@@ -1,76 +1,53 @@
 #include "helper.h"
-#include <fstream>
 #include <string>
-#include <filesystem>
+#include <cstdlib>
+#include <format>
+#include <fstream>
 
-int create_scripts(const char *port) {
-    std::ofstream OpenPortScript(R"(..\..\Host\src\scripts\OpenFirewallPort.bat)");
-    std::ofstream  CheckIfOpenScript(R"(..\..\Host\src\scripts\CheckIfOpen.bat)");
+/**
+ * @brief Runs the initialization process for opening a firewall port.
+ *
+ * @details
+ * This function runs the necessary scripts to open a firewall port on the host machine.
+ * It first checks if the port is already open using the CheckIfOpen script, and if not,
+ * it runs the OpenFirewallPort script to open the specified port.
+ *
+ * @param port The port number to be opened.
+ * @return 0 if the port is successfully opened, 1 otherwise.
+ */
+int run_init(std::basic_string<char> port) {
+    std::string OpenScript = std::format(R"(..\..\Host\src\scripts\OpenFirewallPort.bat {})", port);
+    std::string CheckIfOpenScript = std::format(R"(..\..\Host\src\scripts\CheckIfOpen.bat {})", port);
 
-    if(!OpenPortScript.is_open() || !CheckIfOpenScript.is_open()) {
-        fprintf(stderr, "Couldn't write to files!");
-        return 1;
+    if(system(CheckIfOpenScript.c_str()) == 0) {
+        if(system(OpenScript.c_str()) == 1) {
+            fprintf(stderr, "Couldn't open firewall port\n");
+            return 1;
+        }
     }
-
-    OpenPortScript << "@echo off\n"
-                      "SET PORT_NUMBER=" << port << "\n"
-                                                            "SET RULE_NAME=TCP Port %PORT_NUMBER%\n"
-                                                            "\n"
-                                                            "netsh advfirewall firewall add rule name=\"%RULE_NAME%\" dir=in action=allow protocol=TCP localport=%PORT_NUMBER%\n"
-                                                            "if %ERRORLEVEL% equ 0 (\n" // If it worked return 0, else return 1
-                                                            "   exit /b 0"
-                                                            ") else (\n"
-                                                            "   exit /b 1\n"
-                                                            ")";
-
-    CheckIfOpenScript << "@echo off\n"
-                         "SET PORT_NUMBER=" << port << "\n"
-                                                               "SET RULE_NAME=TCP Port %PORT_NUMBER%\n"
-                                                               "\n"
-                                                               "netsh advfirewall firewall show rule name=all | findstr /C:\"LocalPort:%PORT_NUMBER% \" /C:\"Enabled:Yes\" /C:\"Action:Allow\" /C:\"Direction:In\"\n"
-                                                               "\n"
-                                                               "IF %ERRORLEVEL% equ 1 (\n" // If port is not open return 0, else return 1
-                                                               "    exit /b 0\n"
-                                                               ") ELSE (\n"
-                                                               "    exit /b 1\n"
-                                                               ")";
-
-
-    OpenPortScript.close();
-    CheckIfOpenScript.close();
 
     return 0;
 }
 
-int run_init() {
-    const char *OpenScript = R"(..\..\Host\src\scripts\OpenFirewallPort.bat)";
-    const char *CheckIfOpenScript = R"(..\..\Host\src\scripts\CheckIfOpen.bat)";
 
-    // Execute the script
-    FILE* pipe = _popen(CheckIfOpenScript, "r");
-
-    if(!pipe) {
-        fprintf(stderr, "Couldn't run %s\n", CheckIfOpenScript);
+/**
+ * @brief Creates a start script.
+ *
+ * @details
+ * This function creates a start script with the specified current working directory (cwd) and port.
+ * The start script is written to the relative path ..\..\Host\src\scripts\run_exec.bat.
+ *
+ * @param cwd The current working directory for the start script.
+ * @param port The port parameter for the start script.
+ *
+ * @return 0 if the start script is successfully created, otherwise return 1.
+ */
+int create_start_script(const std::string& cwd, const std::string& port) {
+    std::ofstream run_script(R"(..\..\Host\src\scripts\run_exec.bat)");
+    if(!run_script)
         return 1;
-    }
 
-    auto returnCodeCheck = _pclose(pipe);
-    if(returnCodeCheck == 0) {
-        FILE* open = _popen(OpenScript, "r");
-        if(!open)
-        {
-            fprintf(stderr, "Couldn't run %s\n", OpenScript);
-            return 1;
-        }
-
-        auto returnCodeOpen = _pclose(open);
-        if(returnCodeOpen == 1) {
-            fprintf(stderr, "Couldn't open firewall port\n");
-            return 1;
-        }
-
-        return 0;
-    }
-
+    run_script << std::format(R"(start "" "{}\HostExec.exe" "{}")", cwd, port);
+    run_script.close();
     return 0;
 }

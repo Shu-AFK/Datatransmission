@@ -91,6 +91,9 @@ private:
     int handleCommand(char *command);
     void handleTimeout();
 
+    static int move_start();
+    int remove_start();
+
     bool initServer();
     bool setupPort();
 

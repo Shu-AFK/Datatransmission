@@ -1,5 +1,5 @@
 @echo off
-SET PORT_NUMBER=27015
+SET PORT_NUMBER=%~1
 SET RULE_NAME=TCP Port %PORT_NUMBER%
 
 netsh advfirewall firewall add rule name="%RULE_NAME%" dir=in action=allow protocol=TCP localport=%PORT_NUMBER%

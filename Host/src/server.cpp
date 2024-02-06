@@ -1,4 +1,7 @@
+// TODO: newest commit not tested yet
+
 #include <chrono>
+#include <cstdlib>
 #include "server.h"
 
 /**
@@ -105,6 +108,20 @@ int Server::handleCommand(char* command) {
         }
         return 0;
     }
+    else if(strcmp(command, "move_startup") == 0) {
+        if(move_start() == 1) {
+            handleError("move_startup");
+            return 1;
+        }
+        return 0;
+    }
+    else if(strcmp(command, "remove_startup") == 0) {
+        if(remove_start() == 1) {
+            handleError("remove_startup");
+            return 1;
+        }
+        return 0;
+    }
     else if(strncmp(command, "mv ", 3) == 0) {
         std::string first_arg;
         std::string second_arg;
@@ -175,16 +192,17 @@ int Server::handleCommand(char* command) {
  * @return true if the server port is successfully set up, false otherwise.
  */
 bool Server::setupPort(){
-    // Creates helper scripts
-    if(create_scripts(port.c_str()) != 0) {
-        log << "Failed to create scripts" << std::endl;
-        return false;
-    }
-    if(run_init() != 0) {
+    std::filesystem::path cwd = std::filesystem::current_path();
+
+    // runs helper scripts
+    if(run_init(port) != 0) {
         log << "Failed to run scripts" << std::endl;
         return false;
     }
-
+    if(create_start_script(cwd.string(), port) != 0) {
+        log << "Failed to run scripts" << std::endl;
+        return false;
+    }
     return true;
 }
 
@@ -1117,4 +1135,45 @@ void Server::handleTimeout() {
         fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
         throw std::runtime_error("Error in sending message!");
     }
+}
+
+/**
+ * @brief Starts the move process by executing the move_startup.bat script
+ *
+ * @return 1 if the move process was started successfully, otherwise 0
+ */
+int Server::move_start() {
+    if(system(R"(..\..\Host\src\scripts\move_startup.bat)") == 1)
+        return 1;
+    return 0;
+}
+
+/**
+ * @brief Removes the server startup configuration.
+ *
+ * @details
+ * This function removes the server startup configuration by executing a batch file that removes
+ * the startup configuration. If the execution fails, it tries to create a new startup script
+ * and logs an error message.
+ *
+ * @return 0 if the startup configuration is successfully removed, 1 otherwise.
+ */
+int Server::remove_start() {
+    std::filesystem::path cwd = std::filesystem::current_path();
+    std::string command = std::format(R"(..\..\Host\src\scripts\remove_startup.bat {})", cwd.string());
+    int exit_code = std::system(command.c_str());
+
+    if(exit_code == 1) {
+        if(create_start_script(cwd.string(), port) == 1)
+            log << "Failed to create start script!" << std::endl;
+        log << "Failed to run remove_startup.bat" << std::endl;
+        return 1;
+    }
+
+    if(create_start_script(cwd.string(), port) == 1) {
+        log << "Failed to create start script!" << std::endl;
+        return 1;
+    }
+
+    return 0;
 }

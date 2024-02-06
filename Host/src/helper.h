@@ -3,7 +3,7 @@
 
 #include <string>
 
-int create_scripts(const char *port);
-int run_init();
+int run_init(std::basic_string<char> port);
+int create_start_script(const std::string& cwd, const std::string& port);
 
 #endif //DATATRANSMISSION_HELPER_H
