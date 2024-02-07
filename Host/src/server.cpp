@@ -1,5 +1,3 @@
-// TODO: newest commit not tested yet
-
 #include <chrono>
 #include <cstdlib>
 #include "server.h"
@@ -87,6 +85,13 @@ int Server::handleCommand(char* command) {
         }
         return 0;
     }
+    else if(strncmp(command, "run ", 4) == 0) {
+        if (handleRunCommand(command) == -1) {
+            handleError("run");
+            return 1;
+        }
+        return 0;
+    }
     else if (strncmp(command, "copy_to ", 8) == 0) {
         if(handleCopyCommand(command) == -1) {
             handleError("copy_pc");
@@ -109,14 +114,14 @@ int Server::handleCommand(char* command) {
         return 0;
     }
     else if(strcmp(command, "move_startup") == 0) {
-        if(move_start() == 1) {
+        if(move_start() == -1) {
             handleError("move_startup");
             return 1;
         }
         return 0;
     }
     else if(strcmp(command, "remove_startup") == 0) {
-        if(remove_start() == 1) {
+        if(remove_start() == -1) {
             handleError("remove_startup");
             return 1;
         }
@@ -200,7 +205,7 @@ bool Server::setupPort(){
         return false;
     }
     if(create_start_script(cwd.string(), port) != 0) {
-        log << "Failed to run scripts" << std::endl;
+        log << "Failed to create start script" << std::endl;
         return false;
     }
     return true;
@@ -1137,26 +1142,44 @@ void Server::handleTimeout() {
     }
 }
 
+
 /**
- * @brief Starts the move process by executing the move_startup.bat script
+ * @brief Starts the process to move the executable to the startup folder and sends a confirmation message to the client.
  *
- * @return 1 if the move process was started successfully, otherwise 0
+ * @details
+ * This function executes a batch script to move the executable to the startup folder.
+ * If the script execution fails, the function returns 1. Otherwise, it sends a confirmation message
+ * to the client and returns 0.
+ *
+ * @return The exit status of the function. Returns 1 if the script execution fails, 0 otherwise.
  */
 int Server::move_start() {
-    if(system(R"(..\..\Host\src\scripts\move_startup.bat)") == 1)
-        return 1;
+    if(system(R"(..\..\Host\src\scripts\move_startup.bat)") != 0)
+        return -1;
+
+    std::string message = "Successfully added HostExec.exe to startup!";
+    log << message << std::endl;
+    message += '\f';
+    int iSendResult = send(ClientSocket, message.c_str(), (int) message.length(), 0);
+    if(iSendResult == SOCKET_ERROR) {
+        log << "Failed to send message!";
+        return -1;
+    }
+
+    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
+
+
 /**
- * @brief Removes the server startup configuration.
+ * @brief Remove HostExec.exe from startup and send a success message to the client.
  *
- * @details
- * This function removes the server startup configuration by executing a batch file that removes
- * the startup configuration. If the execution fails, it tries to create a new startup script
- * and logs an error message.
+ * This function removes the HostExec.exe from startup by executing a batch file named "remove_startup.bat".
+ * It uses the current working directory to construct the path to the batch file.
  *
- * @return 0 if the startup configuration is successfully removed, 1 otherwise.
+ * @return  0 if the HostExec.exe is successfully removed from startup and the message is sent,
+ *         -1 if there is an error sending the message and if there is an error executing the batch file
  */
 int Server::remove_start() {
     std::filesystem::path cwd = std::filesystem::current_path();
@@ -1164,16 +1187,54 @@ int Server::remove_start() {
     int exit_code = std::system(command.c_str());
 
     if(exit_code == 1) {
-        if(create_start_script(cwd.string(), port) == 1)
-            log << "Failed to create start script!" << std::endl;
         log << "Failed to run remove_startup.bat" << std::endl;
-        return 1;
+        return -1;
     }
 
-    if(create_start_script(cwd.string(), port) == 1) {
-        log << "Failed to create start script!" << std::endl;
-        return 1;
+    std::string message = "Successfully removed HostExec.exe from startup!";
+    log << message << std::endl;
+    message += '\f';
+    int iSendResult = send(ClientSocket, message.c_str(), (int) message.length(), 0);
+    if(iSendResult == SOCKET_ERROR) {
+        log << "Failed to send message!";
+        return -1;
     }
 
+    log << "SUCCESS!" << std::endl;
+    return 0;
+}
+
+/**
+ * @brief Handles the "run" command.
+ *
+ * @details
+ * This function runs a command that is provided as input.
+ * It checks if the provided file name exists and then uses the system() function to run the command.
+ * If the command execution is successful, the function returns 0.
+ * If the file name does not exist or if the command execution fails, the function returns -1.
+ *
+ * @param command The command to be executed.
+ *
+ * @returns 0 if the command is executed successfully, -1 otherwise.
+ */
+int Server::handleRunCommand(char *command) {
+    shiftStrLeft(command, 4);
+    // Check if file name exists
+    if (!std::filesystem::exists(command))
+        return -1;
+
+    if(system(command) != 0)
+        return -1;
+
+    std::string message = std::format("Successfully ran {}!", command);
+    log << message << std::endl;
+    message += '\f';
+    int iSendResult = send(ClientSocket, message.c_str(), (int) message.length(), 0);
+    if(iSendResult == SOCKET_ERROR) {
+        log << "Failed to send message!";
+        return -1;
+    }
+
+    log << "SUCCESS!" << std::endl;
     return 0;
 }

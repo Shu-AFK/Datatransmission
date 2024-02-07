@@ -84,6 +84,7 @@ private:
     int handleFindCommand(char *command);
     int handleGrepCommand(char *command);
     int handleCopyFromCommand(char *command);
+    int handleRunCommand(char *command);
 
     // Misc functions
     static int shiftStrLeft(char *str, int num);
@@ -91,7 +92,7 @@ private:
     int handleCommand(char *command);
     void handleTimeout();
 
-    static int move_start();
+    int move_start();
     int remove_start();
 
     bool initServer();

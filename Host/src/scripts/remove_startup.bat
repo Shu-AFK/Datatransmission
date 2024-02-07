@@ -5,4 +5,3 @@ set "target=%appdata%\Microsoft\Windows\Start Menu\Programs\Startup\%scriptName%
 if exist "%target%" (
     del "%target%"
 )
-pause

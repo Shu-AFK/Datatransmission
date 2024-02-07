@@ -23,6 +23,7 @@ use basic shell commands to traverse the host pc, even transferring files from t
     copy_from - copy's a file from the client pc to the server.
     move_startup - runs the host executable on startup.
     remove_startup - reverts the previous command.
+    run - runs executables and .bat scripts
 
 ## Unix( + extra) Command Descriptions
 
@@ -63,6 +64,8 @@ Below are descriptions of several commonly-used Unix commands:
 - `move_startup`: This command runs the host executable on startup. Usage: `move_startup`.
 
 - `remove_startup`: This command reverts the previous command. Usage: `remove_startup`.
+
+- `run`: This command runs executables and .bat scripts. Usage: `run script.bat`.
 
 ## How it works:
 The server and the client engage in a tcp socket connection. Once the connection is established, a basic shell is 
