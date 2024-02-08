@@ -83,9 +83,8 @@ Follow the steps below to install the project:
    Now you can build the project as follows:
 
     ```bash
-    mkdir build
-    cd build
-    cmake ..
+    mkdir build && cd build
+    cmake -G "MinGW Makefiles" ..
     make
     ```
    
