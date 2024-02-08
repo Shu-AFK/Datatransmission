@@ -4,27 +4,6 @@
 This project implements a simple socket connection between a client and a server. As the client you can 
 use basic shell commands to traverse the host pc, even transferring files from the server to the client.
 
-## Shell commands implemented:
-    ls - List all files and directories in the current directory. 
-    cd - Change current directory. 
-    pwd - Print working directory. 
-    cat - Concatenate and display the content of files.
-    echo - Output the inputs.
-    mkdir - Create a new directory. 
-    rmdir - Removes a directory. 
-    rm - Remove files or empty directories. 
-    touch - Create an empty file. 
-    mv - Move or rename files or directories.
-    cp - Copy files or directories.
-    find - Search for files in a directory hierarchy.
-    grep - Search text using patterns.
-    exit - Exit the shell. 
-    copy_to - copy's a file to the client pc.
-    copy_from - copy's a file from the client pc to the server.
-    move_startup - runs the host executable on startup.
-    remove_startup - reverts the previous command.
-    run - runs executables and .bat scripts
-
 ## Unix( + extra) Command Descriptions
 
 Below are descriptions of several commonly-used Unix commands:
@@ -64,6 +43,8 @@ Below are descriptions of several commonly-used Unix commands:
 - `move_startup`: This command runs the host executable on startup. Usage: `move_startup`.
 
 - `remove_startup`: This command reverts the previous command. Usage: `remove_startup`.
+
+- `check_startup`: This command checks if the exe file gets started on startup. Usage: `check_startup`.
 
 - `run`: This command runs executables and .bat scripts. Usage: `run script.bat`.
 
