@@ -114,15 +114,25 @@ int Server::handleCommand(char* command) {
         return 0;
     }
     else if(strcmp(command, "move_startup") == 0) {
-        if(move_start() == -1) {
+        int res = move_start();
+        if(res == -1) {
             handleError("move_startup");
+            return 1;
+        }
+        else if(res == -2) {
+            handleStartupError(1);
             return 1;
         }
         return 0;
     }
     else if(strcmp(command, "remove_startup") == 0) {
-        if(remove_start() == -1) {
+        int res = remove_start();
+        if(res == -1) {
             handleError("remove_startup");
+            return 1;
+        }
+        else if(res == -2) {
+            handleStartupError(2);
             return 1;
         }
         return 0;
@@ -171,6 +181,13 @@ int Server::handleCommand(char* command) {
     else if(strncmp(command, "grep ", 5) == 0) {
         if (handleGrepCommand(command) == -1) {
             handleError("grep");
+            return 1;
+        }
+        return 0;
+    }
+    else if(strcmp(command, "check_startup") == 0) {
+        if (handleCheckInStartup() == -1) {
+            handleError("check_startup");
             return 1;
         }
         return 0;
@@ -1154,8 +1171,13 @@ void Server::handleTimeout() {
  * @return The exit status of the function. Returns 1 if the script execution fails, 0 otherwise.
  */
 int Server::move_start() {
+    if(inStartup)
+        return -2;
+
     if(system(R"(..\..\Host\src\scripts\move_startup.bat)") != 0)
         return -1;
+
+    inStartup = true;
 
     std::string message = "Successfully added HostExec.exe to startup!";
     log << message << std::endl;
@@ -1182,6 +1204,9 @@ int Server::move_start() {
  *         -1 if there is an error sending the message and if there is an error executing the batch file
  */
 int Server::remove_start() {
+    if(!inStartup)
+        return -2;
+
     std::filesystem::path cwd = std::filesystem::current_path();
     std::string command = std::format(R"(..\..\Host\src\scripts\remove_startup.bat {})", cwd.string());
     int exit_code = std::system(command.c_str());
@@ -1190,6 +1215,8 @@ int Server::remove_start() {
         log << "Failed to run remove_startup.bat" << std::endl;
         return -1;
     }
+
+    inStartup = false;
 
     std::string message = "Successfully removed HostExec.exe from startup!";
     log << message << std::endl;
@@ -1232,6 +1259,71 @@ int Server::handleRunCommand(char *command) {
     int iSendResult = send(ClientSocket, message.c_str(), (int) message.length(), 0);
     if(iSendResult == SOCKET_ERROR) {
         log << "Failed to send message!";
+        return -1;
+    }
+
+    log << "SUCCESS!" << std::endl;
+    return 0;
+}
+
+/**
+ * @brief Handles the startup error and sends a message to the client.
+ *
+ * @details If `move` is `1`, it means that the executable is already in startup. If `move` is `2`,
+ * it means that the executable is not yet in startup, so there is nothing to remove
+ *. Otherwise, if `move` is neither `1` nor `2`, the function returns without doing anything.
+ *
+ * The function logs the message and appends a form feed character to the message. Then, it attempts to send
+ * the message to the client using the `ClientSocket`. If the sending fails
+ *, an error message is logged and printed to the standard error stream.
+ *
+ * @param move An integer indicating the type of startup move.
+ */
+void Server::handleStartupError(int move) {
+    std::string message;
+
+    // Handles already in startup
+    if(move == 1)
+        message = "The exe is already in startup";
+    else if(move == 2)
+        message = "The exe is not yet in startup, nothing to remove";
+    else
+        return;
+
+    log << message << std::endl;
+    message += '\f';
+
+    int iSendResult = send(ClientSocket, message.c_str(), (int) message.length(), 0);
+    if(iSendResult == SOCKET_ERROR) {
+        log << "Failed to send message!";
+        std::cerr << "failed to send message!" << std::endl;
+    }
+}
+
+/**
+ * @brief Sends a message to the client indicating whether the exe file is in startup or not.
+ *
+ * @details
+ * If the exe file is in startup, the message will be "The exe file is in startup".
+ * If the exe file is not in startup, the message will be "The exe file is not in startup".
+ * The message is logged to the log file.
+ *
+ * @return 0 if the message is sent successfully, -1 otherwise.
+ */
+int Server::handleCheckInStartup() {
+    std::string message;
+    if(inStartup)
+        message = "The exe file is in startup";
+    else
+        message = "The exe file is not in startup";
+
+    log << message << std::endl;
+    message += '\f';
+
+    int iSendResult = send(ClientSocket, message.c_str(), (int) message.length(), 0);
+    if(iSendResult == SOCKET_ERROR) {
+        log << "Failed to send message!";
+        std::cerr << "failed to send message!" << std::endl;
         return -1;
     }
 

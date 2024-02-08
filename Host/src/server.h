@@ -60,8 +60,11 @@ private:
     SOCKET ClientSocket = INVALID_SOCKET;
     SOCKET ListenSocket = INVALID_SOCKET;
     std::ofstream log;
+    std::fstream settings;
     WSADATA wsaData;
     std::string port;
+    std::filesystem::path settingsPath;
+    bool inStartup = false;
     int iResult;
     struct addrinfo *result = nullptr, *ptr = nullptr, hints;
     char recvbuf[DEFAULT_BUFLEN];
@@ -85,12 +88,14 @@ private:
     int handleGrepCommand(char *command);
     int handleCopyFromCommand(char *command);
     int handleRunCommand(char *command);
+    int handleCheckInStartup();
 
     // Misc functions
     static int shiftStrLeft(char *str, int num);
     void handleError(const char *command) const;
     int handleCommand(char *command);
     void handleTimeout();
+    void handleStartupError(int move);
 
     int move_start();
     int remove_start();
@@ -100,9 +105,31 @@ private:
 
 public:
     Server(const std::string& spec_port) {
+        settingsPath = "settings.txt";
+
         log.open("log.txt");
         if(!log)
             throw std::runtime_error("Failed to open log file");
+
+        settings.open(settingsPath, std::ios::in);
+        if(!settings.is_open())
+            throw std::runtime_error("Failed to open settings file");
+
+        std::string line;
+        std::getline(settings, line);
+        if(line.empty()) {
+            settings.close();
+            settings.open(settingsPath, std::ios::out);
+            if(!settings.is_open())
+                throw std::runtime_error("Failed to open settings file");
+            settings << "startup = false";
+        }
+        else if(line == "startup = true")
+            inStartup = true;
+        else if(line == "startup = false")
+            inStartup = false;
+
+        settings.close();
 
         ZeroMemory(&hints, sizeof(hints));
         hints.ai_family = AF_INET;
@@ -125,6 +152,17 @@ public:
         WSACleanup();
         freeaddrinfo(result);
         log.close();
+
+        settings.open(settingsPath, std::ios::out);
+        if(!settings.is_open())
+            throw std::runtime_error("Failed to open settings file");
+
+        if(inStartup)
+            settings << "startup = true";
+        else
+            settings << "startup = false";
+
+        settings.close();
     }
 
     int run();
