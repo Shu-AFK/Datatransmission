@@ -1232,3 +1232,257 @@ int Server::handleSend(std::string sen) {
     log << "SUCCESS!" << std::endl;
     return 0;
 }
+
+/**
+ * Calculate the hash value of a given password.
+ *
+ * @details
+ * This function uses the std::hash algorithm to calculate the hash value of the password.
+ *
+ * @param password The password string for which the hash value is to be calculated.
+ * @return The hash value of the password as a string.
+ */
+std::string hash_pass(const std::string &password) {
+    std::hash<std::string> hasher;
+    auto hashed = hasher(password);
+    return std::to_string(hashed);
+}
+
+/**
+ * @brief Authenticate a user with a given username and password.
+ *
+ * @details
+ * This function authenticates a user by checking the provided username and password
+ * against the USER table in the database. The password is first hashed using the
+ * hash_pass function before comparing it with the stored hashed password in the database.
+ *
+ * @param username The username of the user to authenticate.
+ * @param password The password of the user to authenticate.
+ * @return 0 for successful authentication. -1 if an error occurred.
+ */
+int Server::auth(const std::string &username, const std::string &password) {
+    std::string new_pass = hash_pass(password);
+    char *zErrMsg = nullptr;
+
+    std::string sql = "SELECT * FROM USERS WHERE USERNAME='" + username + "' AND PASSWORD='" + new_pass + "';";
+
+    int rc = sqlite3_exec(DB, sql.c_str(), auth_callback, 0, &zErrMsg);
+
+    if(rc != SQLITE_OK){
+        fprintf(stderr, "SQL error: %s\n", zErrMsg);
+        sqlite3_free(zErrMsg);
+        return -1;
+    }
+
+    sqlite3_free(zErrMsg);
+    return 0;
+}
+
+/**
+ * @brief Add a new user to the database.
+ *
+ * @details
+ * This function inserts a new user with the given name and password into the USERS table in the database.
+ * The password is first hashed using the hash_pass function before inserting.
+ *
+ * @param name The username of the new user.
+ * @param password The password of the new user.
+ * @return 0 if the user is added successfully, -1 otherwise.
+ */
+int Server::addUser(const std::string &name, const std::string &password) {
+    std::string new_pass = hash_pass(password);
+
+    char *zErrMsg = nullptr;
+
+    std::string sql = "INSERT INTO USERS (USERNAME, PASSWORD) "
+                      "VALUES ('" + name + "', '" + new_pass + "');";
+
+    int rc = sqlite3_exec(DB, sql.c_str(), callback, this, &zErrMsg);
+    if(handleSQL(rc, zErrMsg, "insert username and password into") == -1) {
+        sqlite3_free(zErrMsg);
+        return -1;
+    }
+
+    sqlite3_free(zErrMsg);
+    return 0;
+}
+
+/**
+ * @brief Initialize the SQLite database.
+ *
+ * @details
+ * This function creates a table named USERS in the database. The table has three columns:
+ * ID (an integer primary key), USERNAME (a unique text), and PASSWORD (a text).
+ *
+ * @return 0 on success, -1 on failure.
+ */
+int Server::initDB() {
+    char *zErrMsg = nullptr;
+
+    std::string sql = "CREATE TABLE USERS(" \
+                      "ID INT PRIMARY KEY," \
+                      "USERNAME     TEXT    UNIQUE," \
+                      "PASSWORD     TEXT);";
+
+    int rc = sqlite3_exec(DB, sql.c_str(), callback, this, &zErrMsg);
+
+    if(handleSQL(rc, zErrMsg, "create") == -1) {
+        sqlite3_free(zErrMsg);
+        return -1;
+    }
+
+    sqlite3_free(zErrMsg);
+    return 0;
+}
+
+/**
+ * @brief Checks if the database is empty.
+ *
+ * @details
+ * This function executes an SQL query to check the number of tables in the database.
+ * If the query is successful and the result is 0, it returns true. Otherwise, it throws
+ * an exception with the corresponding error message.
+ *
+ * @return true if the database is empty, false otherwise.
+ * @throws std::runtime_error if there was an SQLite error or an SQL error.
+ */
+bool Server::dbIsEmpty() {
+    sqlite3_stmt *stmt;
+    int rc;
+
+    const std::string sql = "SELECT COUNT(*) FROM sqlite_master WHERE type='table';";
+    rc = sqlite3_prepare_v2(DB, sql.c_str(), -1, &stmt, 0);
+    if(rc != SQLITE_OK) {
+        std::string message = std::format("SQL error: {}", sqlite3_errmsg(DB));
+        throw std::runtime_error(message);
+    }
+
+    // Execute SQL statement and check results
+    rc = sqlite3_step(stmt);
+    if (rc == SQLITE_ROW) {
+        int count = sqlite3_column_int(stmt, 0);
+        sqlite3_finalize(stmt);
+        return count <= 0;  // return true if no tables
+    }
+
+    // Error
+    sqlite3_finalize(stmt);
+    throw std::runtime_error("SQLite error: " + std::string(sqlite3_errmsg(DB)));
+}
+
+/**
+ * @brief The callback function to be used with the SQLite library.
+ *
+ * @details
+ * This callback function is used to call the appropriate member function
+ * of the `Server` class. It casts the `instance` parameter to a `Server`
+ * pointer and calls the `callbackImpl` member function with the given
+ * parameters.
+ *
+ * @param instance A pointer to the `Server` instance.
+ * @param argc The number of columns in the result set.
+ * @param argv The row data in the result set.
+ * @param azColName The column names in the result set.
+ * @return The result code returned by the `callbackImpl` member function.
+ */
+int Server::callback(void *instance, int argc, char **argv, char **azColName) {
+    return static_cast<Server *>(instance)->callbackImpl(argc, argv, azColName);
+}
+
+/**
+ * @brief Callback function implementation for SQLite query results.
+ *
+ * @details
+ * This function is called by the SQLite library for each row of the query result.
+ * It appends the column names and values to a stringstream object, prints the result,
+ * and writes it to the log file.
+ *
+ * @param argc The number of columns in the current row.
+ * @param argv An array of strings containing the values of each column in the current row.
+ * @param azColName An array of strings containing the names of each column in the result set.
+ * @return int Always returns 0.
+ */
+int Server::callbackImpl(int argc, char **argv, char **azColName) {
+    std::stringstream ss;
+
+    for(int i = 0; i < argc; i++) {
+        // Append column name and value to stringstream
+        ss << azColName[i] << " = ";
+        ss << (argv[i] ? argv[i] : "NULL") << "\n";
+    }
+
+    ss << "\n";
+
+    // Convert stringstream to string and print it
+    std::string res = ss.str();
+    std::cout << res;
+    log << res;
+
+    return 0;
+}
+
+/**
+ * @brief This method handles the result of an SQL operation.
+ *
+ * @details
+ * If the result code (`rc`) is not `SQLITE_OK`, it logs an error message and returns -1.
+ * Otherwise, it logs a success message and returns 0.
+ *
+ * @param rc The result code of the SQL operation.
+ * @param zErrMsg The error message associated with the SQL operation.
+ * @param operation The type of operation that was performed.
+ * @return Returns -1 if there was an error, 0 otherwise.
+ */
+int Server::handleSQL(int rc, const char *zErrMsg, const char *operation) {
+    if(rc != SQLITE_OK) {
+        log << "Failed to " << operation << " table: " << zErrMsg << std::endl;
+        std::cerr << "Failed to " << operation << " table: " << zErrMsg << std::endl;
+        return -1;
+    } else {
+        log << "Table " << operation << " successfully!" << std::endl;
+        std::cout << "Table " << operation << " successfully!" << std::endl;
+        return 0;
+    }
+}
+
+/**
+ * @brief Callback function for the authentication process.
+ *
+ * This function is used as a callback for the authentication process by the SQLite library.
+ * It is called for each row returned in a query result.
+ *
+ * @param NotUsed A pointer to unused data.
+ * @param argc The number of columns in the result row.
+ * @param argv An array of strings representing the values of each column in the result row.
+ * @param azColName An array of strings representing the names of each column in the result row.
+ *
+ * @return The number of columns in the result row.
+ */
+int Server::auth_callback(void *NotUsed, int argc, char **argv, char **azColName) {
+    return argc;
+}
+
+/**
+ * @brief Remove a user from the USERS table in the database.
+ *
+ * @details
+ * This function deletes a user with the specified name from the USERS table
+ * in the database. It executes an SQL DELETE statement to remove the user.
+ *
+ * @param name The name of the user to remove.
+ * @return Returns 0 if the user was removed successfully, -1 otherwise.
+ */
+int Server::remUser(const std::string &name) {
+    char *zErrMsg = nullptr;
+
+    std::string sql = "DELETE FROM USERS WHERE USERNAME='" + name + "';";
+
+    int rc = sqlite3_exec(DB, sql.c_str(), callback, this, &zErrMsg);
+    if(handleSQL(rc, zErrMsg, "remove user from") == -1) {
+        sqlite3_free(zErrMsg);
+        return -1;
+    }
+
+    sqlite3_free(zErrMsg);
+    return 0;
+}

@@ -2,6 +2,8 @@
 
 #include "client.h"
 
+// TODO: Need to add authentication on client side
+
 #define DEFAULT_BUFLEN 512
 #define DEFAULT_PORT "27015"
 

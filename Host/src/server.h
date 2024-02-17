@@ -53,6 +53,7 @@
 #include <iostream>
 #include <format>
 #include <regex>
+#include <sstream>
 
 class Server {
 private:
@@ -69,6 +70,8 @@ private:
     struct addrinfo *result = nullptr, *ptr = nullptr, hints;
     char recvbuf[DEFAULT_BUFLEN];
     int recvbuflen = DEFAULT_BUFLEN;
+    std::string db_name = "users.db";
+    sqlite3* DB;
 
     int handlePwdCommand();
     static void handleExitCommand();
@@ -104,6 +107,15 @@ private:
     bool initServer();
     bool setupPort();
 
+    // Database
+    int initDB();
+    static int callback(void *instance, int argc, char **argv, char **azColName);
+    int callbackImpl(int argc, char **argv, char **azColName);
+    bool dbIsEmpty();
+    int handleSQL(int rc, const char *zErrMsg, const char *operation);
+    static int auth_callback(void *NotUsed, int argc, char **argv, char**azColName);
+    int auth(const std::string &username, const std::string &password);
+
 public:
     Server(const std::string& spec_port) {
         settingsPath = "settings.txt";
@@ -131,6 +143,20 @@ public:
             inStartup = false;
 
         settings.close();
+
+        int rc = sqlite3_open(db_name.c_str(), &DB);
+
+        if(rc) {
+            std::string message = std::format("Can't open database: {}", sqlite3_errmsg(DB));
+            throw std::runtime_error(message);
+        }
+
+        try {
+            if(dbIsEmpty())
+                initDB();
+        } catch (const std::runtime_error &e) {
+            throw e;
+        }
 
         ZeroMemory(&hints, sizeof(hints));
         hints.ai_family = AF_INET;
@@ -164,9 +190,12 @@ public:
             settings << "startup = false";
 
         settings.close();
+        sqlite3_close(DB);
     }
 
     int run();
+    int addUser(const std::string &name, const std::string &password);
+    int remUser(const std::string &name);
 };
 
 #endif //DATATRANSMISSION_SERVER_H
