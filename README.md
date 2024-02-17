@@ -4,6 +4,15 @@
 This project implements a simple socket connection between a client and a server. As the client you can 
 use basic shell commands to traverse the host pc, even transferring files from the server to the client.
 
+## Dependencies
+
+This project depends on the following libraries and tools:
+
+- [CMake](https://cmake.org/) (version 3.12 or higher) as a build system.
+- [SQLite3](https://www.sqlite.org/) as a database engine for managing users.
+- [Winsock Library](https://docs.microsoft.com/en-us/windows/win32/winsock/windows-sockets-start-page-2) (`Ws2_32.lib`) for TCP/IP networking.
+- C++ Compiler with support for C++23 standard.
+
 ## Unix( + extra) Command Descriptions
 
 Below are descriptions of several commonly-used Unix commands:
