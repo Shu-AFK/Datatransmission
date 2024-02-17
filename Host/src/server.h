@@ -92,7 +92,8 @@ private:
 
     // Misc functions
     static int shiftStrLeft(char *str, int num);
-    void handleError(const char *command) const;
+    int handleSend(std::string sen);
+    void handleError(const char *command);
     int handleCommand(char *command);
     void handleTimeout();
     void handleStartupError(int move);

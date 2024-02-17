@@ -164,7 +164,7 @@ SOCKET Client::createAndConnectSocket() {
     for (ptr = result; ptr != NULL; ptr = ptr->ai_next) {
         ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
         if (ConnectSocket == INVALID_SOCKET) {
-            printf("socket failed with error: %ld\n", WSAGetLastError());
+            printf("socket failed with error: %d\n", WSAGetLastError());
             WSACleanup();
             exit(1);
         }
