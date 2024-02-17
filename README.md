@@ -53,7 +53,7 @@ Both the server (`HostExec.exe`) and the client (`ReceiverExec.exe`) interact ov
 
 Here's how you can call `HostExec.exe` with several command-line flags:
 ```shell
-  bash .\HostExec.exe -p PORT -n NAME PASSWORD -r NAME --set-startup
+.\HostExec.exe -p PORT -n NAME PASSWORD -r NAME --set-startup
 ```
 
 Read more about these flags [here](FLAGS_FOR_HOST.md).
@@ -62,7 +62,7 @@ Read more about these flags [here](FLAGS_FOR_HOST.md).
 
 `ReceiverExec.exe` can be called similarly, but with different flags:
 ```shell
-bash .\ReceiverExec.exe -s SERVER_IP -p PORT -u USERNAME -w PASSWORD
+.\ReceiverExec.exe -s SERVER_IP -p PORT -u USERNAME -w PASSWORD
 ```
 
 Read more about these flags [here](FLAGS_FOR_RECEIVER.md).
@@ -75,21 +75,21 @@ To set up this project on your machine, follow the steps outlined below:
 
 Clone the repository onto your local machine using the following command in your command line:
 ```shell
-  bash git clone https://github.com/Shu-AFK/Datatransmission.git
+git clone https://github.com/Shu-AFK/Datatransmission.git
 ```
 
 ### 5.2 Navigate to the project directory
 
 Using the command line, navigate into the newly created project directory:
 ```shell
-  cd Datatransmission
+cd Datatransmission
 ```
 
 ### 5.3 Build the project 
 
 Next, you'll need to build the project. You can do this by running the provided `build.bat` script. In the command prompt, execute the script like this:
 ```shell
-   build.bat C:\path\to\SQLite
+.\build.bat "C:\path\to\SQLite"
 ```
 
 The batch script will create a `build` directory if one doesn't exist, configure the project using CMake with the provided SQLite path, and then build the project in release mode.
