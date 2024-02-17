@@ -118,7 +118,7 @@ Follow the steps below to install the project:
 ## Contributing
 Any contributions you make are **greatly appreciated**.
 
-Please see the detailed steps in our `[CONTRIBUTING.md](CONTRIBUTING.md)` file. These steps will guide you through the process of
+Please see the detailed steps in our [CONTRIBUTING.md](CONTRIBUTE.md) file. These steps will guide you through the process of
 
 1. Forking the project
 2. Committing your changes
