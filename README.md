@@ -74,6 +74,19 @@ For example, to start the server on port 9000, add a user named "john" with the 
   .\HostExec.exe -p 9000 -n john password -r mary --set-startup
 ```
 
+`ReceiverExec.exe` can be called with the following command-line flags:
+
+- `-s SERVER_IP` – specifies the IP of the server to connect to. Replace "SERVER_IP" with the actual IP address of your server.
+- `-p PORT` – specifies the port number to connect to on the server. Replace "PORT" with the desired port number.
+- `-u USERNAME` – specifies the username to use when connecting to the server. Replace "USERNAME" with the registered username on the server.
+- `-w PASSWORD` – specifies the password to use when connecting to the server. Replace "PASSWORD" with the corresponding password registered for the username on the server.
+- `-h` – prints the usage message, listing these flags and explaining how to use them.
+
+For example, to connect to a server with IP address `192.168.0.10` on port `9000` using the username "john" and the password "password", you would use the following command:
+```bash
+  .\ReceiverExec.exe -s 192.168.0.10 -p 9000 -u john -w password
+```
+
 ## Installation: 
 
 Follow the steps below to install the project:
@@ -124,15 +137,16 @@ Follow the steps below to install the project:
 5. **Run both files**
 
     Lastly you can run the HostExec.exe file using (please make sure to run with admin privileges):
+    For Optional and non-optional flags please [Jump to How It Works](#how-it-works)
 
     ```bash
-    HostExec.exe [optional port]
+    .\HostExec.exe 
    ```
    
     Now you can run the ReceiverExec.exe file using:
     
     ```bash
-    HostExec.exe [server IP] [optional port]
+    .\ReceiberExec.exe 
    ```
    
     And the connection should be established.
