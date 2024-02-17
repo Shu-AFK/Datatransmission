@@ -1206,6 +1206,16 @@ int Server::handleCheckInStartup() {
     return 0;
 }
 
+/**
+ * @brief Sends a message to the connected client and logs the message.
+ *
+ * @details
+ * This function sends a message to the connected client using the
+ * ClientSocket. It also logs the message using the log file.
+ *
+ * @param sen The message to be sent to the client.
+ * @return 0 on success, -1 on failure to send the message.
+ */
 int Server::handleSend(std::string sen) {
     log << sen << std::endl;
     std::cout << sen << std::endl;
