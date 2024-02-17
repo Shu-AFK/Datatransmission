@@ -88,6 +88,11 @@ Follow the steps below to install the project:
     make
     ```
    
+   or by simply running:
+   ```bash
+      .\build.bat
+   ```
+   
 4. **Move the files**
 
     Building the project results in two executable files.
@@ -113,11 +118,11 @@ Follow the steps below to install the project:
 ## Contributing
 Any contributions you make are **greatly appreciated**.
 
-1. **Fork** the Project
-2. Create your **Feature Branch** (git checkout -b feature/AmazingFeature)
-3. **Commit** your Changes (git commit -m 'Add some AmazingFeature')
-4. **Push** to the Branch (git push origin feature/AmazingFeature)
-5. Open a **Pull Request**
+Please see the detailed steps in our `[CONTRIBUTING.md](CONTRIBUTING.md)` file. These steps will guide you through the process of
+
+1. Forking the project
+2. Committing your changes
+3. Opening a pull request
 
 Please explain any changes to the codebase in detail in your pull request and make sure
 you resolve any conflicts with the main branch before submitting the pull request.
