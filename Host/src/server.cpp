@@ -1486,3 +1486,25 @@ int Server::remUser(const std::string &name) {
     sqlite3_free(zErrMsg);
     return 0;
 }
+
+/**
+ * @brief Add the server to the startup.
+ *
+ * This function adds the server to the startup by invoking a batch script located in a specific path.
+ *
+ * @return int - Return codes:
+ *             - 0: Server added to startup successfully.
+ *             - -1: Error occurred while executing the batch script.
+ *             - -2: Server is already in the startup.
+ */
+int Server::addStartup() {
+    if(inStartup)
+        return -2;
+
+    if(system(R"(..\..\Host\src\scripts\move_startup.bat)") != 0)
+        return -1;
+
+    inStartup = true;
+
+    return 0;
+}

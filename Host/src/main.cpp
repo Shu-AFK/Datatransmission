@@ -19,6 +19,7 @@ void print_usage() {
               << "  -n NAME PASSWORD adds a user with the given name and password.\n"
               << "  -r NAME          removes a user with the given name.\n"
               << "  -h               prints this usage message.\n"
+              << "  --set-startup    Boots the executable on server startup.\n"
               << "Example:\n"
               << "  ./HostExec.exe -p 9000 -n john password -r mary\n";
 }
@@ -29,6 +30,8 @@ std::string add_pass;
 
 bool rem = false;
 std::string rem_name;
+
+bool set_startup = false;
 
 /**
  * @brief Handles the command line arguments and assigns values to corresponding variables.
@@ -68,6 +71,8 @@ void handle_args(int argc, char **argv, std::string &port) {
             rem_name = argv[i + 1];
             i++;
         }
+        else if(strcmp(argv[i], "--set-startup") == 0)
+            set_startup = true;
     }
 }
 
@@ -100,6 +105,15 @@ int main(int argc, char **argv) {
     if(rem) {
         if(server.remUser(rem_name) == -1)
             return EXIT_FAILURE;
+    }
+
+    if(set_startup) {
+        int res = server.addStartup();
+
+        if(res == -1)
+            return EXIT_FAILURE;
+        else if(res == -2)
+            std::cerr << "Executable already in startup!" << std::endl;
     }
 
     try {

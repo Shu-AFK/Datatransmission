@@ -49,8 +49,21 @@ Below are descriptions of several commonly-used Unix commands:
 - `run`: This command runs executables and .bat scripts. Usage: `run script.bat`.
 
 ## How it works:
-The server and the client engage in a tcp socket connection. Once the connection is established, a basic shell is 
-started on the client pc, allowing for communication between the client and the server. 
+
+The server (`HostExec.exe`) and the client engage in a Tcp socket connection. Once the connection is established, a basic shell is started on the client PC, allowing for communication between the client and the server.
+
+`HostExec.exe` can be called with the following command-line flags:
+
+- `-p PORT` – specifies the port number for the server to listen on. Replace "PORT" with your desired port number. If this flag is not provided, the application will use a default port.
+- `-n NAME PASSWORD` – adds a user with the given "NAME" and "PASSWORD". This allows the server to handle multiple users with different credentials.
+- `-r NAME` – removes a user with the specified "NAME". This can be used to withdraw access from a specific user.
+- `-h` – prints the usage message, listing these flags and explaining how to use them.
+- `--set-startup` - Set the executable to start on boot.
+
+For example, to start the server on port 9000, add a user named "john" with the password "password", and remove a user named "mary" while adding the executable to the startup, you would use the following command:
+```bash 
+  .\HostExec.exe -p 9000 -n john password -r mary --set-startup
+```
 
 ## Installation: 
 
