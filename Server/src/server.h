@@ -127,8 +127,10 @@ public:
             throw std::runtime_error("Failed to open log file");
 
         settings.open(settingsPath, std::ios::in);
-        if(!settings.is_open())
-            throw std::runtime_error("Failed to open settings file");
+        if(!settings.is_open()) {
+            std::ofstream create_settings(settingsPath);
+            create_settings.close();
+        }
 
         std::string line;
         std::getline(settings, line);

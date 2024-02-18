@@ -16,8 +16,8 @@
  * @return 0 if the port is successfully opened, 1 otherwise.
  */
 int run_init(std::basic_string<char> port) {
-    std::string OpenScript = std::format(R"(..\..\Host\src\scripts\OpenFirewallPort.bat {})", port);
-    std::string CheckIfOpenScript = std::format(R"(..\..\Host\src\scripts\CheckIfOpen.bat {})", port);
+    std::string OpenScript = std::format(R"(..\..\Server\src\scripts\OpenFirewallPort.bat {})", port);
+    std::string CheckIfOpenScript = std::format(R"(..\..\Server\src\scripts\CheckIfOpen.bat {})", port);
 
     if(system(CheckIfOpenScript.c_str()) == 0) {
         if(system(OpenScript.c_str()) == 1) {
@@ -43,11 +43,11 @@ int run_init(std::basic_string<char> port) {
  * @return 0 if the start script is successfully created, otherwise return 1.
  */
 int create_start_script(const std::string& cwd, const std::string& port) {
-    std::ofstream run_script(R"(..\..\Host\src\scripts\run_exec.bat)");
+    std::ofstream run_script(R"(..\..\Server\src\scripts\run_exec.bat)");
     if(!run_script)
         return 1;
 
-    run_script << std::format(R"(start "" "{}\HostExec.exe" "{}")", cwd, port);
+    run_script << std::format(R"(start "" "{}\Server.exe" "{}")", cwd, port);
     run_script.close();
     return 0;
 }
