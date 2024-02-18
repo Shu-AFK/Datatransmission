@@ -100,8 +100,14 @@ After building the project, you can run the server and client applications. Thes
 
 ## 6. Contributing
 
-We welcome all contributions! Please read our [CONTRIBUTING.md](CONTRIBUTE.md) for detailed information on how you can contribute.
+We welcome all contributions! Please read our [CONTRIBUTING.md](CONTRIBUTING) for detailed information on how you can contribute.
 
 ## 7. License
 
 This project is distributed under the MIT License. See our [LICENSE](LICENSE.txt) for more details.
+
+## 8. Code of Conduct
+
+To ensure we all stay on the same page about the behavior that crafts a more productive and enjoyable space,
+a Code of Conduct is outlined for this project. Find the Code of Conduct 
+[here](CODE_OF_CONDUCT.md), and keep spreading positivity!
