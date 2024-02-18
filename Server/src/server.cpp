@@ -1062,12 +1062,12 @@ int Server::move_start() {
     if(inStartup)
         return -2;
 
-    if(system(R"(..\..\Host\src\scripts\move_startup.bat)") != 0)
+    if(system(R"(..\..\Server\src\scripts\move_startup.bat)") != 0)
         return -1;
 
     inStartup = true;
 
-    std::string message = "Successfully added HostExec.exe to startup!";
+    std::string message = "Successfully added Server.exe to startup!";
 
     if(handleSend(message) == -1)
         return 1;
@@ -1078,12 +1078,12 @@ int Server::move_start() {
 
 
 /**
- * @brief Remove HostExec.exe from startup and send a success message to the client.
+ * @brief Remove Server.exe from startup and send a success message to the client.
  *
- * This function removes the HostExec.exe from startup by executing a batch file named "remove_startup.bat".
+ * This function removes the Server.exe from startup by executing a batch file named "remove_startup.bat".
  * It uses the current working directory to construct the path to the batch file.
  *
- * @return  0 if the HostExec.exe is successfully removed from startup and the message is sent,
+ * @return  0 if the Server.exe is successfully removed from startup and the message is sent,
  *         -1 if there is an error sending the message and if there is an error executing the batch file
  */
 int Server::remove_start() {
@@ -1091,7 +1091,7 @@ int Server::remove_start() {
         return -2;
 
     std::filesystem::path cwd = std::filesystem::current_path();
-    std::string command = std::format(R"(..\..\Host\src\scripts\remove_startup.bat {})", cwd.string());
+    std::string command = std::format(R"(..\..\Server\src\scripts\remove_startup.bat {})", cwd.string());
     int exit_code = std::system(command.c_str());
 
     if(exit_code == 1) {
@@ -1101,7 +1101,7 @@ int Server::remove_start() {
 
     inStartup = false;
 
-    std::string message = "Successfully removed HostExec.exe from startup!";
+    std::string message = "Successfully removed Server.exe from startup!";
 
     if(handleSend(message) == -1)
         return -1;
@@ -1244,6 +1244,7 @@ std::string hash_pass(const std::string &password) {
  * @return 0 for successful authentication. -1 if an error occurred.
  */
 int Server::auth(const std::string &username, const std::string &password) {
+    log << "Authenticating " << username << ".." << std::endl;
     std::string new_pass = hash_pass(password);
     char *zErrMsg = nullptr;
 
@@ -1254,10 +1255,12 @@ int Server::auth(const std::string &username, const std::string &password) {
     if(rc != SQLITE_OK){
         fprintf(stderr, "SQL error: %s\n", zErrMsg);
         sqlite3_free(zErrMsg);
+        log << "Authentication was not successful" << std::endl;
         return -1;
     }
 
     sqlite3_free(zErrMsg);
+    log << "Authentication was successful" << std::endl;
     return 0;
 }
 
@@ -1273,6 +1276,7 @@ int Server::auth(const std::string &username, const std::string &password) {
  * @return 0 if the user is added successfully, -1 otherwise.
  */
 int Server::addUser(const std::string &name, const std::string &password) {
+    log << "Adding user " << name << ".." << std::endl;
     std::string new_pass = hash_pass(password);
 
     char *zErrMsg = nullptr;
@@ -1281,12 +1285,21 @@ int Server::addUser(const std::string &name, const std::string &password) {
                       "VALUES ('" + name + "', '" + new_pass + "');";
 
     int rc = sqlite3_exec(DB, sql.c_str(), callback, this, &zErrMsg);
-    if(handleSQL(rc, zErrMsg, "insert username and password into") == -1) {
+    int res = handleSQL(rc, zErrMsg, "insert username and password into");
+    if(strcmp(zErrMsg, "UNIQUE constraint failed: USERS.USERNAME") == 0) {
         sqlite3_free(zErrMsg);
+        log << "Username already exists" << std::endl;
+        return 1;
+    }
+
+    if(res == -1) {
+        sqlite3_free(zErrMsg);
+        log << "Adding user was not successful" << std::endl;
         return -1;
     }
 
     sqlite3_free(zErrMsg);
+    log << "Adding user was successful" << std::endl;
     return 0;
 }
 
@@ -1300,6 +1313,7 @@ int Server::addUser(const std::string &name, const std::string &password) {
  * @return 0 on success, -1 on failure.
  */
 int Server::initDB() {
+    log << "initialising db.." << std::endl;
     char *zErrMsg = nullptr;
 
     std::string sql = "CREATE TABLE USERS(" \
@@ -1311,10 +1325,12 @@ int Server::initDB() {
 
     if(handleSQL(rc, zErrMsg, "create") == -1) {
         sqlite3_free(zErrMsg);
+        log << "initialisation was not successful" << std::endl;
         return -1;
     }
 
     sqlite3_free(zErrMsg);
+    log << "db initialisation successfully" << std::endl;
     return 0;
 }
 
@@ -1330,6 +1346,7 @@ int Server::initDB() {
  * @throws std::runtime_error if there was an SQLite error or an SQL error.
  */
 bool Server::dbIsEmpty() {
+    log << "Checking if db is empty.." << std::endl;
     sqlite3_stmt *stmt;
     int rc;
 
@@ -1456,6 +1473,7 @@ int Server::auth_callback(void *NotUsed, int argc, char **argv, char **azColName
  * @return Returns 0 if the user was removed successfully, -1 otherwise.
  */
 int Server::remUser(const std::string &name) {
+    log << "Removing user: " << name << std::endl;
     char *zErrMsg = nullptr;
 
     std::string sql = "DELETE FROM USERS WHERE USERNAME='" + name + "';";
@@ -1463,10 +1481,12 @@ int Server::remUser(const std::string &name) {
     int rc = sqlite3_exec(DB, sql.c_str(), callback, this, &zErrMsg);
     if(handleSQL(rc, zErrMsg, "remove user from") == -1) {
         sqlite3_free(zErrMsg);
+        log << "Removing user was not successful" << std::endl;
         return -1;
     }
 
     sqlite3_free(zErrMsg);
+    log << "Successfully removed user" << std::endl;
     return 0;
 }
 
@@ -1484,7 +1504,7 @@ int Server::addStartup() {
     if(inStartup)
         return -2;
 
-    if(system(R"(..\..\Host\src\scripts\move_startup.bat)") != 0)
+    if(system(R"(..\..\Server\src\scripts\move_startup.bat)") != 0)
         return -1;
 
     inStartup = true;
