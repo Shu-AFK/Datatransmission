@@ -86,7 +86,7 @@ void handle_args(int argc, char **argv, std::string &port) {
  * @param argv An array of command-line arguments.
  * @return The exit status of the program.
  */
-int main(int argc, char **argv) {
+int _cdecl main(int argc, char **argv) {
     std::string port = DEFAULT_PORT;
     try {
         handle_args(argc, argv, port);

@@ -21,7 +21,6 @@ int Server::handleCommand(char* command) {
     if (strncmp(command, "pwd", 3) == 0) {
         if(handlePwdCommand() == -1) {
             handleError("pwd");
-            return 1;
         }
         return 0;
     }
@@ -29,11 +28,9 @@ int Server::handleCommand(char* command) {
         int res = handleCopyFromCommand(command);
         if(res == -1) {
             handleError("copy_from");
-            return 1;
         }
         else if(res == -2) { // Time out return
             handleTimeout();
-            return 1;
         }
         return 0;
     }
@@ -44,70 +41,60 @@ int Server::handleCommand(char* command) {
     else if (strncmp(command, "cd ", 3) == 0) {
         if(handleChangeDirectoryCommand(command + 3) == -1){
             handleError("cd");
-            return 1;
         }
         return 0;
     }
     else if (strncmp(command, "ls", 2) == 0) {
         if(handleLsCommand(command) == -1){
             handleError("ls");
-            return 1;
         }
         return 0;
     }
     else if (strncmp(command, "mkdir ", 6) == 0) {
         if(handleMakeDirectoryCommand(command) == -1){
             handleError("mkdir");
-            return 1;
         }
         return 0;
     }
     else if (strncmp(command, "touch ", 6) == 0) {
         if(handleTouchFileCommand(command) == -1){
             handleError("touch");
-            return 1;
         }
         return 0;
     }
     else if (strncmp(command, "rm ", 3) == 0) {
         if(handleRemoveFileCommand(command) == -1){
             handleError("rm");
-            return 1;
         }
         return 0;
     }
     else if (strncmp(command, "rmdir ", 6) == 0) {
         if(handleRemoveDirectoryCommand(command) == -1){
             handleError("rmdir");
-            return 1;
         }
         return 0;
     }
     else if(strncmp(command, "run ", 4) == 0) {
         if (handleRunCommand(command) == -1) {
             handleError("run");
-            return 1;
         }
         return 0;
     }
     else if (strncmp(command, "copy_to ", 8) == 0) {
         if(handleCopyCommand(command) == -1) {
             handleError("copy_pc");
-            return 1;
         }
         return 0;
     }
     else if (strncmp(command, "cat ", 4) == 0) {
         if(handleCatCommand(command) == -1) {
             handleError("cat");
-            return 1;
         }
         return 0;
     }
     else if (strncmp(command, "echo ", 5) == 0) {
         if(handleEchoCommand(command) == -1) {
             handleError("echo");
-            return 1;
         }
         return 0;
     }
@@ -115,11 +102,9 @@ int Server::handleCommand(char* command) {
         int res = move_start();
         if(res == -1) {
             handleError("move_startup");
-            return 1;
         }
         else if(res == -2) {
             handleStartupError(1);
-            return 1;
         }
         return 0;
     }
@@ -127,11 +112,9 @@ int Server::handleCommand(char* command) {
         int res = remove_start();
         if(res == -1) {
             handleError("remove_startup");
-            return 1;
         }
         else if(res == -2) {
             handleStartupError(2);
-            return 1;
         }
         return 0;
     }
@@ -154,46 +137,46 @@ int Server::handleCommand(char* command) {
 
         if(space_counter != 2) {
             handleError("mv");
-            return 1;
         }
         if(handleMoveCommand(command) == -1) {
             handleError("mv");
-            return 1;
         }
         return 0;
     }
     else if(strncmp(command, "cp ", 3) == 0) {
         if(handleCpCommand(command) == -1) {
             handleError("cp");
-            return 1;
         }
         return 0;
     }
     else if(strncmp(command, "find ", 5) == 0) {
         if(handleFindCommand(command) == -1) {
             handleError("find");
-            return 1;
         }
         return 0;
     }
     else if(strncmp(command, "grep ", 5) == 0) {
         if (handleGrepCommand(command) == -1) {
             handleError("grep");
-            return 1;
         }
         return 0;
     }
     else if(strcmp(command, "check_startup") == 0) {
         if (handleCheckInStartup() == -1) {
             handleError("check_startup");
-            return 1;
+        }
+        return 0;
+    }
+    // Check for authentication
+    else if (strncmp(command, "auth: ", 6) == 0) {
+        if(handleAuth(command) == -1) {
+            handleError("Auth");
         }
         return 0;
     }
     else {
         if(sendCmdDoesntExist()) {
             handleError("send");
-            return 1;
         }
         return 0;
     }
@@ -739,11 +722,13 @@ int Server::run() {
         iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
         log << recvbuf << std::endl;
 
-        res = handleCommand(recvbuf);
-        if(res == 1)
-            return 1;
-        if(res == 2)
-            return 2;
+        try {
+            res = handleCommand(recvbuf);
+            if(res == 2)
+                return 2;
+        } catch (const std::runtime_error &e) {
+            log << e.what() << std::endl;
+        }
     } while(true);
 }
 
@@ -1503,6 +1488,45 @@ int Server::addStartup() {
         return -1;
 
     inStartup = true;
+
+    return 0;
+}
+
+/**
+ * @brief Handles the authentication command received from the client.
+ *
+ * @details
+ * This function parses the authentication command received from the client and extracts the username and password.
+ * It then calls the auth function to authenticate the user by checking the provided username and password against the USER table in the database.
+ * If the authentication is successful, it sends a "valid" message to the client using the handleSend function.
+ *
+ * @param command The authentication command received from the client.
+ * @return 0 on successful authentication, -1 on error or authentication failure.
+ */
+int Server::handleAuth(char *command) {
+    shiftStrLeft(command, 6);
+    std::string username, password;
+    int space_counter = 0;
+    bool second_word = false;
+
+    for(int i = 0, len = (int) strlen(command); i < len; i++) {
+        if(command[i] == ' ') {
+            space_counter++;
+            second_word = true;
+        }
+
+        if(second_word)
+            password += command[i];
+        else
+            username += command[i];
+    }
+
+    if(space_counter != 1) return -1;
+
+    int res = auth(username, password);
+    if(res == -1) return -1;
+
+    if(handleSend("valid") != 0) return -1;
 
     return 0;
 }

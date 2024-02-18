@@ -43,13 +43,20 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <utility>
 #include <stdio.h>
 
 #define DEFAULT_BUFLEN 512
-#define DEFAULT_PORT "27015"
 
 class Client {
-    std::string port;
+private:
+    void initWinsock();
+    void initServerConnection(const char *server_name);
+    SOCKET createAndConnectSocket();
+    static int shiftStrLeft(std::string &str, int num);
+    int sendData(SOCKET clientSocket, std::string& cmd);
+    static std::string recvData(SOCKET clientSocket, std::string& cmd);
+
     WSADATA wsaData;
     SOCKET ConnectSocket;
     addrinfo *result, *ptr, hints;
@@ -57,16 +64,24 @@ class Client {
     std::ofstream log;
     int iResult;
     const static int recvbuflen = DEFAULT_BUFLEN;
+    std::string ip, port, username, password;
+    std::string None;
 
 public:
-    Client(const std::string &server_name, const std::string &port = DEFAULT_PORT) {
+    Client(std::string ip, std::string port, std::string username, std::string password)
+        : ip(std::move(ip)), port(std::move(port)), username(std::move(username)), password(std::move(password)) {
         ConnectSocket = INVALID_SOCKET;
-        this->port = port;
+
         log.open("log.txt");
         if (!log)
             throw std::runtime_error("Failed to open log file");
-        initWinsock();
-        initServerConnection(server_name.c_str());
+
+        try {
+            initWinsock();
+            initServerConnection(ip.c_str());
+        } catch (const std::runtime_error &e) {
+            throw e;
+        }
     }
 
     ~Client() {
@@ -77,14 +92,6 @@ public:
     }
 
     void run();
-
-private:
-    void initWinsock();
-    void initServerConnection(const char *server_name);
-    SOCKET createAndConnectSocket();
-    static int shiftStrLeft(std::string &str, int num);
-    static int sendData(SOCKET clientSocket, const std::string& cmd);
-    static std::string recvData(SOCKET clientSocket, std::string& cmd);
 };
 
 #endif //DATATRANSMISSION_CLIENT_H

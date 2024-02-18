@@ -201,6 +201,8 @@ public:
     int addUser(const std::string &name, const std::string &password);
     int remUser(const std::string &name);
     int addStartup();
+
+    int handleAuth(char *command);
 };
 
 #endif //DATATRANSMISSION_SERVER_H

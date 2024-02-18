@@ -142,9 +142,19 @@ void Client::initServerConnection(const char *server_name) {
 
     ConnectSocket = createAndConnectSocket();
     if (ConnectSocket == INVALID_SOCKET) {
-        printf("Unable to connect to server!\n");
+        printf("Unable to connect to server\n");
         WSACleanup();
-        exit(1);
+        throw std::runtime_error("unable to connect to server");
+    }
+
+    // Authentication
+    std::string iSendString = std::format("auth: {} {}", username, password);
+    sendData(ConnectSocket, iSendString);
+
+    std::string valid = recvData(ConnectSocket, None);
+    if(valid != "valid") {
+        std::cerr << "Credentials are invalid" << std::endl;
+        throw std::runtime_error("Credentials are invalid");
     }
 }
 
@@ -219,12 +229,16 @@ int Client::shiftStrLeft(std::string &str, int num) {
  * @param cmd The command to send.
  * @return 0 if the data is successfully sent, -1 otherwise.
  */
-int Client::sendData(SOCKET clientSocket, const std::string& cmd)
+int Client::sendData(SOCKET clientSocket, std::string& cmd)
 {
+    log << cmd << std::endl;
+    cmd += '\f';
+
     int iSendResult = send(clientSocket, cmd.c_str(), (int) cmd.length(), 0);
     if(iSendResult == SOCKET_ERROR)
     {
         std::cout << "Error in sending command to server. Error: " << WSAGetLastError() << std::endl;
+        log << "Error in sending command to server. Error: " << WSAGetLastError() << std::endl;
         return -1;
     }
 
