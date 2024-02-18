@@ -56,7 +56,7 @@ Here's how you can call `HostExec.exe` with several command-line flags:
 .\HostExec.exe -p PORT -n NAME PASSWORD -r NAME --set-startup
 ```
 
-Read more about these flags [here](FLAGS_FOR_HOST.md).
+Read more about these flags [here](FLAGS_FOR_SERVER).
 
 ### 4.2 Client Usage: `ReceiverExec.exe`
 
@@ -65,7 +65,7 @@ Read more about these flags [here](FLAGS_FOR_HOST.md).
 .\ReceiverExec.exe -s SERVER_IP -p PORT -u USERNAME -w PASSWORD
 ```
 
-Read more about these flags [here](FLAGS_FOR_RECEIVER.md).
+Read more about these flags [here](FLAGS_FOR_CLIENT).
 
 ## 5. Installation & Setup
 
