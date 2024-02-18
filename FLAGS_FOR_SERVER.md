@@ -1,6 +1,6 @@
-# Detailed Command-Line Flags for `HostExec.exe`
+# Detailed Command-Line Flags for `Server.exe`
 
-The executable for the server, `HostExec.exe`, can be called with various command-line flags that determine its behavior.
+The executable for the server, `Server.exe`, can be called with various command-line flags that determine its behavior.
 
 Here's a detailed breakdown:
 

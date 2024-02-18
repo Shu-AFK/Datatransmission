@@ -47,22 +47,22 @@ This project relies on the following libraries and tools:
 
 ## 4. Usage
 
-Both the server (`HostExec.exe`) and the client (`ReceiverExec.exe`) interact over a TCP socket connection. Once the connection is established, the client runs a basic shell, facilitating communication between both ends.
+Both the server (`Server.exe`) and the client (`Client.exe`) interact over a TCP socket connection. Once the connection is established, the client runs a basic shell, facilitating communication between both ends.
 
-### 4.1 Server Usage: `HostExec.exe`
+### 4.1 Server Usage: `Server.exe`
 
-Here's how you can call `HostExec.exe` with several command-line flags:
+Here's how you can call `Server.exe` with several command-line flags:
 ```shell
 .\HostExec.exe -p PORT -n NAME PASSWORD -r NAME --set-startup
 ```
 
 Read more about these flags [here](FLAGS_FOR_SERVER).
 
-### 4.2 Client Usage: `ReceiverExec.exe`
+### 4.2 Client Usage: `CLient.exe`
 
-`ReceiverExec.exe` can be called similarly, but with different flags:
+`CLient.exe` can be called similarly, but with different flags:
 ```shell
-.\ReceiverExec.exe -s SERVER_IP -p PORT -u USERNAME -w PASSWORD
+.\CLient.exe -s SERVER_IP -p PORT -u USERNAME -w PASSWORD
 ```
 
 Read more about these flags [here](FLAGS_FOR_CLIENT).
@@ -96,7 +96,7 @@ The batch script will create a `build` directory if one doesn't exist, configure
 
 ### 5.4 Run the project
 
-After building the project, you can run the server and client applications. These applications are `HostExec.exe` and `ReceiverExec.exe`, with the flags specified earlier.
+After building the project, you can run the server and client applications. These applications are `Server.exe` and `Client.exe`, with the flags specified earlier.
 
 ## 6. Contributing
 

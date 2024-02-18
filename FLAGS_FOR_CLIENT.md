@@ -1,6 +1,6 @@
-# Detailed Command-Line Flags for `ReceiverExec.exe`
+# Detailed Command-Line Flags for `Client.exe`
 
-The client's executable, `ReceiverExec.exe`, can also be controlled with various command-line flags:
+The client's executable, `CLient.exe`, can also be controlled with various command-line flags:
 
 - `-s SERVER_IP` – Specifies the IP of the server for connection.
 
