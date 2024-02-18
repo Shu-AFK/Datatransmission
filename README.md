@@ -87,7 +87,7 @@ cd Datatransmission
 
 ### 5.3 Build the project 
 
-Next, you'll need to build the project. You can do this by running the provided `build.bat` script. In the command prompt, execute the script like this:
+Next, you'll need to build the project. You can do this by running the provided `build.bat` script. In the command prompt, execute the script like this: (make sure the folder with the sqlite3 .dll is in your PATH)
 ```shell
 .\build.bat "C:\path\to\SQLite"
 ```
