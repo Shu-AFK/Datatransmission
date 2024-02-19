@@ -720,6 +720,13 @@ int Server::run() {
     do {
         memset(recvbuf, 0, sizeof(recvbuf));
         iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
+
+        // Strips the \f
+        if(recvbuf != nullptr) {
+            const unsigned int length = strlen(recvbuf);
+            if((length > 0) && (recvbuf[length - 1] == '\f')) recvbuf[length - 1] = '\0';
+        }
+
         log << recvbuf << std::endl;
 
         try {

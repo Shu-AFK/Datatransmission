@@ -155,10 +155,8 @@ void Client::initServerConnection(const char *server_name) {
     sendData(ConnectSocket, iSendString);
 
     std::string valid = recvData(ConnectSocket, None);
-    if(valid != "valid") {
-        std::cerr << "Credentials are invalid" << std::endl;
+    if(valid != "valid")
         throw std::runtime_error("Credentials are invalid");
-    }
 }
 
 /**
