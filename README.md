@@ -2,7 +2,7 @@
 
 ## 1. Project Overview
 
-This project implements a simple socket connection between a client and a server. It provides basic shell commands that allow clients to navigate the host PC, including the ability to transfer files from the server to the client.
+This project implements a simple socket connection between a client and a server. It provides basic shell commands that allow clients to navigate the Server PC, including the ability to transfer files from the server to the client.
 
 ## 2. Dependencies
 
@@ -40,7 +40,7 @@ This project relies on the following libraries and tools:
 |------------------|-------------------------------------------------------|----------------------|
 | `copy_to`        | Copies a file to the client's PC.                     | `copy_to file.txt`   |
 | `copy_from`      | Copies a file from the client's PC to the server.     | `copy_from file.txt` |
-| `move_startup`   | Runs the host executable on startup.                  | `move_startup`       |
+| `move_startup`   | Runs the Server executable on startup.                | `move_startup`       |
 | `remove_startup` | Cancels the `move_startup` command.                   | `remove_startup`     |
 | `check_startup`  | Checks whether the executable file starts on startup. | `check_startup`      |
 | `run`            | Runs executables and .bat scripts.                    | `run script.bat`     |
@@ -53,7 +53,7 @@ Both the server (`Server.exe`) and the client (`Client.exe`) interact over a TCP
 
 Here's how you can call `Server.exe` with several command-line flags:
 ```shell
-.\HostExec.exe -p PORT -n NAME PASSWORD -r NAME --set-startup
+.\Server.exe -p PORT -n NAME PASSWORD -r NAME --set-startup
 ```
 
 Read more about these flags [here](FLAGS_FOR_SERVER).

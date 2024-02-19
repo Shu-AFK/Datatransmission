@@ -20,6 +20,9 @@ void Client::run() {
         std::string command;
         std::cout << "shell $ ";
         std::getline(std::cin, command);
+        if(command == "")
+            continue;
+
         log << "shell $ " << command << std::endl;
 
         // Checks if the typed command is copy_from, due to it needing different procedure
