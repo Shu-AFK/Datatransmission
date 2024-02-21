@@ -223,6 +223,7 @@ public:
     int addUser(const std::string &name, const std::string &password);
     int remUser(const std::string &name);
     int addStartup();
+    int setCwd(const std::string &path);
 
     int handleAuth(char *command);
 };

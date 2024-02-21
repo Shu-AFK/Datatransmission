@@ -9,17 +9,18 @@ static constexpr const char* DEFAULT_PORT = "27015";
  *
  * @details
  * This function prints the usage message which explains the command line options for the HostExec program.
- * It provides information on how to specify the server port number, add users, remove users, and display the usage message.
+ * It provides information on how to specify the server port number, add users, remove users, etc.
  * An example usage is also provided.
  */
 void print_usage() {
     std::cout << "Usage: ./HostExec.exe [OPTION]...\n"
               << "Options:\n"
-              << "  -p PORT          specifies the port number for the server.\n"
-              << "  -n NAME PASSWORD adds a user with the given name and password.\n"
-              << "  -r NAME          removes a user with the given name.\n"
-              << "  -h               prints this usage message.\n"
-              << "  --set-startup    Boots the executable on server startup.\n"
+              << "  -p PORT                     specifies the port number for the server.\n"
+              << "  -n NAME PASSWORD            adds a user with the given name and password.\n"
+              << "  -r NAME                     removes a user with the given name.\n"
+              << "  -h                          prints this usage message.\n"
+              << "  --set-cwd DIRECTORY PATH    sets the current directory.\n"
+              << "  --set-startup               Boots the executable on server startup.\n"
               << "Example:\n"
               << "  ./HostExec.exe -p 9000 -n john password -r mary\n";
 }
@@ -32,6 +33,9 @@ bool rem = false;
 std::string rem_name;
 
 bool set_startup = false;
+
+bool set_cwd = false;
+std::string cwd;
 
 /**
  * @brief Handles the command line arguments and assigns values to corresponding variables.
@@ -73,6 +77,12 @@ void handle_args(int argc, char **argv, std::string &port) {
         }
         else if(strcmp(argv[i], "--set-startup") == 0)
             set_startup = true;
+        else if(strcmp(argv[i], "--set-cwd") == 0) {
+            if(i + 1 >= argc) { print_usage(); throw std::runtime_error("Incorrect usage"); }
+            set_cwd = true;
+            cwd = argv[i + 1];
+            i++;
+        }
     }
 }
 
@@ -114,6 +124,12 @@ int _cdecl main(int argc, char **argv) {
             return EXIT_FAILURE;
         else if(res == -2)
             std::cerr << "Executable already in startup!" << std::endl;
+    }
+
+    if(set_cwd) {
+        if(server.setCwd(cwd) == -1) {
+            return EXIT_FAILURE;
+        }
     }
 
     try {

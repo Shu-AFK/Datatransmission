@@ -1557,3 +1557,25 @@ int Server::handleAuth(char *command) {
 
     return 0;
 }
+
+/**
+ * @brief Sets the current working directory to the specified path.
+ *
+ * @details
+ * This method changes the current working directory to the provided path. It uses the `std::filesystem::current_path`
+ * function to set the current directory.
+ *
+ * @param path The path to the new working directory.
+ * @return An integer value representing the result of the operation:
+ *         - 0: The current working directory was successfully changed to the specified path.
+ *         - -1: An error occurred while changing the current working directory.
+ */
+int setCwd(const std::string &path) {
+    try {
+        std::filesystem::current_path(path);
+        log << "Filepath successfully changed to " << path << std::endl;
+        return 0;
+    } catch (const std::filesystem::filesystem_error &e) {
+        return -1;
+    }
+}

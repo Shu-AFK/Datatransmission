@@ -18,3 +18,4 @@ Here's a detailed breakdown:
 
 - `-h` – Provides a usage message that lists these flags and explains how to utilize them.
 - `--set-startup` - Enables the executable to start upon booting up.
+- `--set-cwd` - Sets the current working directory. For example: `--set-cwd C:\`.
