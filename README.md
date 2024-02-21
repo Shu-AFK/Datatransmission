@@ -60,7 +60,7 @@ Read more about these flags [here](FLAGS_FOR_SERVER).
 
 ### 4.2 Client Usage: `CLient.exe`
 
-`CLient.exe` can be called similarly, but with different flags:
+`CLient.exe` can be called similarly, but with different flags (basic user is username: root, password: root):
 ```shell
 .\CLient.exe -s SERVER_IP -p PORT -u USERNAME -w PASSWORD
 ```

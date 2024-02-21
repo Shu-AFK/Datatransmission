@@ -119,6 +119,15 @@ private:
     int auth(const std::string &username, const std::string &password);
 
 public:
+    /**
+     * @brief Server constructor.
+     *
+     * This constructor initializes the Server class and sets up the server.
+     * It takes a string argument, `spec_port`, which specifies the port for the server to listen on.
+     *
+     * @param spec_port The port to listen on as a string.
+     * @throws std::runtime_error if an error occurs when initializing the server.
+     */
     Server(const std::string& spec_port) {
         settingsPath = "settings.txt";
 
@@ -162,6 +171,10 @@ public:
             throw e;
         }
 
+        // Add root user
+        if(addUser("root", "root") == -1)
+            throw std::runtime_error("unable to insert root user into database!");
+
         ZeroMemory(&hints, sizeof(hints));
         hints.ai_family = AF_INET;
         hints.ai_socktype = SOCK_STREAM;
@@ -178,6 +191,15 @@ public:
         memset(recvbuf, 0, DEFAULT_BUFLEN);
     }
 
+    /**
+     * @brief Destructor for the Server class.
+     *
+     * This destructor will clean up all the resources used by the Server object.
+     * It closes the client socket, cleans up the Winsock API, frees the address info result,
+     * closes the log file, updates the settings file, and closes the SQLite database.
+     *
+     * @throws std::runtime_error if failed to open the settings file
+     */
     ~Server() { // Destructor will clean up all the resources correctly
         closesocket(ClientSocket);
         WSACleanup();
