@@ -18,167 +18,205 @@
  *         - 2: The exit command was received.
  */
 int Server::handleCommand(char* command) {
-    if (strncmp(command, "pwd", 3) == 0) {
+    try {
+        if (strncmp(command, "pwd", 3) == 0) {
         if(handlePwdCommand() == -1) {
             handleError("pwd");
         }
         return 0;
-    }
-    else if(strncmp(command, "copy_from ", 10) == 0) {
-        int res = handleCopyFromCommand(command);
-        if(res == -1) {
-            handleError("copy_from");
         }
-        else if(res == -2) { // Time out return
-            handleTimeout();
+        else if(strncmp(command, "copy_from ", 10) == 0) {
+            int res = handleCopyFromCommand(command);
+            if(res == -1) {
+                handleError("copy_from");
+            }
+            else if(res == -2) { // Time out return
+                handleTimeout();
+            }
+            return 0;
         }
-        return 0;
-    }
-    else if (strcmp(command, "exit") == 0) {
-        handleExitCommand();
-        return 2;
-    }
-    else if (strncmp(command, "cd ", 3) == 0) {
-        if(handleChangeDirectoryCommand(command + 3) == -1){
-            handleError("cd");
+        else if (strcmp(command, "exit") == 0) {
+            handleExitCommand();
+            return 2;
         }
-        return 0;
-    }
-    else if (strncmp(command, "ls", 2) == 0) {
-        if(handleLsCommand(command) == -1){
-            handleError("ls");
+        else if (strncmp(command, "cd ", 3) == 0) {
+            if(handleChangeDirectoryCommand(command + 3) == -1){
+                handleError("cd");
+            }
+            return 0;
         }
-        return 0;
-    }
-    else if (strncmp(command, "mkdir ", 6) == 0) {
-        if(handleMakeDirectoryCommand(command) == -1){
-            handleError("mkdir");
+        else if (strncmp(command, "ls", 2) == 0) {
+            if(handleLsCommand(command) == -1){
+                handleError("ls");
+            }
+            return 0;
         }
-        return 0;
-    }
-    else if (strncmp(command, "touch ", 6) == 0) {
-        if(handleTouchFileCommand(command) == -1){
-            handleError("touch");
+        else if (strncmp(command, "mkdir ", 6) == 0) {
+            if(handleMakeDirectoryCommand(command) == -1){
+                handleError("mkdir");
+            }
+            return 0;
         }
-        return 0;
-    }
-    else if (strncmp(command, "rm ", 3) == 0) {
-        if(handleRemoveFileCommand(command) == -1){
-            handleError("rm");
+        else if (strncmp(command, "touch ", 6) == 0) {
+            if(handleTouchFileCommand(command) == -1){
+                handleError("touch");
+            }
+            return 0;
         }
-        return 0;
-    }
-    else if (strncmp(command, "rmdir ", 6) == 0) {
-        if(handleRemoveDirectoryCommand(command) == -1){
-            handleError("rmdir");
+        else if (strncmp(command, "rm ", 3) == 0) {
+            if(handleRemoveFileCommand(command) == -1){
+                handleError("rm");
+            }
+            return 0;
         }
-        return 0;
-    }
-    else if(strncmp(command, "run ", 4) == 0) {
-        if (handleRunCommand(command) == -1) {
-            handleError("run");
+        else if (strncmp(command, "rmdir ", 6) == 0) {
+            if(handleRemoveDirectoryCommand(command) == -1){
+                handleError("rmdir");
+            }
+            return 0;
         }
-        return 0;
-    }
-    else if (strncmp(command, "copy_to ", 8) == 0) {
-        if(handleCopyCommand(command) == -1) {
-            handleError("copy_pc");
+        else if(strncmp(command, "run ", 4) == 0) {
+            if (handleRunCommand(command) == -1) {
+                handleError("run");
+            }
+            return 0;
         }
-        return 0;
-    }
-    else if (strncmp(command, "cat ", 4) == 0) {
-        if(handleCatCommand(command) == -1) {
-            handleError("cat");
+        else if (strncmp(command, "copy_to ", 8) == 0) {
+            if(handleCopyCommand(command) == -1) {
+                handleError("copy_pc");
+            }
+            return 0;
         }
-        return 0;
-    }
-    else if (strncmp(command, "echo ", 5) == 0) {
-        if(handleEchoCommand(command) == -1) {
-            handleError("echo");
+        else if (strncmp(command, "cat ", 4) == 0) {
+            if(handleCatCommand(command) == -1) {
+                handleError("cat");
+            }
+            return 0;
         }
-        return 0;
-    }
-    else if(strcmp(command, "move_startup") == 0) {
-        int res = move_start();
-        if(res == -1) {
-            handleError("move_startup");
+        else if (strncmp(command, "echo ", 5) == 0) {
+            if(handleEchoCommand(command) == -1) {
+                handleError("echo");
+            }
+            return 0;
         }
-        else if(res == -2) {
-            handleStartupError(1);
+        else if(strcmp(command, "move_startup") == 0) {
+            int res = move_start();
+            if(res == -1) {
+                handleError("move_startup");
+            }
+            else if(res == -2) {
+                handleStartupError(1);
+            }
+            return 0;
         }
-        return 0;
-    }
-    else if(strcmp(command, "remove_startup") == 0) {
-        int res = remove_start();
-        if(res == -1) {
-            handleError("remove_startup");
+        else if(strcmp(command, "remove_startup") == 0) {
+            int res = remove_start();
+            if(res == -1) {
+                handleError("remove_startup");
+            }
+            else if(res == -2) {
+                handleStartupError(2);
+            }
+            return 0;
         }
-        else if(res == -2) {
-            handleStartupError(2);
-        }
-        return 0;
-    }
-    else if(strncmp(command, "mv ", 3) == 0) {
-        std::string first_arg;
-        std::string second_arg;
-        int space_counter = 0;
+        else if(strncmp(command, "mv ", 3) == 0) {
+            std::string first_arg;
+            std::string second_arg;
+            int space_counter = 0;
 
-        for(int i = 0, len = (int) strlen(command); i < len; i++) {
-            if(command[i] == ' ') {
-                space_counter++;
-                continue;
+            for(int i = 0, len = (int) strlen(command); i < len; i++) {
+                if(command[i] == ' ') {
+                    space_counter++;
+                    continue;
+                }
+
+                if(space_counter == 1)
+                    first_arg += command[i];
+                if(space_counter == 2)
+                    second_arg += command[i];
             }
 
-            if(space_counter == 1)
-                first_arg += command[i];
-            if(space_counter == 2)
-                second_arg += command[i];
+            if(space_counter != 2) {
+                handleError("mv");
+            }
+            if(handleMoveCommand(command) == -1) {
+                handleError("mv");
+            }
+            return 0;
         }
+        else if(strncmp(command, "cp ", 3) == 0) {
+            if(handleCpCommand(command) == -1) {
+                handleError("cp");
+            }
+            return 0;
+        }
+        else if(strncmp(command, "find ", 5) == 0) {
+            if(handleFindCommand(command) == -1) {
+                handleError("find");
+            }
+            return 0;
+        }
+        else if(strncmp(command, "grep ", 5) == 0) {
+            if (handleGrepCommand(command) == -1) {
+                handleError("grep");
+            }
+            return 0;
+        }
+        else if(strcmp(command, "check_startup") == 0) {
+            if (handleCheckInStartup() == -1) {
+                handleError("check_startup");
+            }
+            return 0;
+        }
+        // Check for authentication
+        else if (strncmp(command, "auth: ", 6) == 0) {
+            if(handleAuth(command) == -1) {
+                handleError("Auth");
+            }
+            return 0;
+        }
+        else if(strncmp(command, "add_user ", 9) == 0) {
+            shiftStrLeft(command, 9);
+            std::string name, password;
+            int space_counter = 0;
 
-        if(space_counter != 2) {
-            handleError("mv");
+            for(int i = 0; i < strlen(command); i++) {
+                if(command[i] == ' ') space_counter++;
+                if(space_counter == 0)
+                    name += command[i];
+                else
+                    password += command[i];
+            }
+
+            if(space_counter != 1)
+                handleWrongUsage("add_user");
+
+            int ret = addUser(name, password);
+            if(ret == -1)
+                handleError("add_user");
+
+            else if(ret == -2) {
+                if(handleSend(std::format("{} already in database", name)) == -1)
+                    throw std::runtime_error("failed to send message!");
+            }
+
+            return 0;
         }
-        if(handleMoveCommand(command) == -1) {
-            handleError("mv");
+        else if(strncmp(command, "remove_user ", 12) == 0) {
+            shiftStrLeft(command, 12);
+            if(remUser(command) == -1)
+                handleError("remove_user");
+
+            return 0;
         }
-        return 0;
-    }
-    else if(strncmp(command, "cp ", 3) == 0) {
-        if(handleCpCommand(command) == -1) {
-            handleError("cp");
+        else {
+            if(sendCmdDoesntExist()) {
+                handleError("send");
+            }
+            return 0;
         }
-        return 0;
-    }
-    else if(strncmp(command, "find ", 5) == 0) {
-        if(handleFindCommand(command) == -1) {
-            handleError("find");
-        }
-        return 0;
-    }
-    else if(strncmp(command, "grep ", 5) == 0) {
-        if (handleGrepCommand(command) == -1) {
-            handleError("grep");
-        }
-        return 0;
-    }
-    else if(strcmp(command, "check_startup") == 0) {
-        if (handleCheckInStartup() == -1) {
-            handleError("check_startup");
-        }
-        return 0;
-    }
-    // Check for authentication
-    else if (strncmp(command, "auth: ", 6) == 0) {
-        if(handleAuth(command) == -1) {
-            handleError("Auth");
-        }
-        return 0;
-    }
-    else {
-        if(sendCmdDoesntExist()) {
-            handleError("send");
-        }
-        return 0;
+    } catch (const std::runtime_error &e) {
+        throw e;
     }
 }
 
@@ -1286,28 +1324,36 @@ int Server::addUser(const std::string &name, const std::string &password) {
     log << "Adding user " << name << ".." << std::endl;
     std::string new_pass = hash_pass(password);
 
-    char *zErrMsg = nullptr;
+    sqlite3_stmt *stmt;
+    std::string query = "SELECT 1 FROM USERS WHERE USERNAME = ?";
+    if (sqlite3_prepare_v2(DB, query.c_str(), -1, &stmt, nullptr) == SQLITE_OK){
+        sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_STATIC);
 
-    std::string sql = "INSERT INTO USERS (USERNAME, PASSWORD) "
-                      "VALUES ('" + name + "', '" + new_pass + "');";
-
-    int rc = sqlite3_exec(DB, sql.c_str(), callback, this, &zErrMsg);
-    int res = handleSQL(rc, zErrMsg, "insert username and password into");
-    if(strcmp(zErrMsg, "UNIQUE constraint failed: USERS.USERNAME") == 0) {
-        sqlite3_free(zErrMsg);
-        log << "Username already exists" << std::endl;
-        return 1;
+        if (sqlite3_step(stmt) == SQLITE_ROW){
+            sqlite3_finalize(stmt);
+            log << "Username already exists" << std::endl;
+            return -2;
+        }
     }
+    sqlite3_finalize(stmt);
 
-    if(res == -1) {
-        sqlite3_free(zErrMsg);
-        log << "Adding user was not successful" << std::endl;
-        return -1;
+    query = "INSERT INTO USERS (USERNAME, PASSWORD) VALUES (?, ?)";
+    if (sqlite3_prepare_v2(DB, query.c_str(), -1, &stmt, nullptr) == SQLITE_OK){
+        sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, new_pass.c_str(), -1, SQLITE_STATIC);
+
+        if (sqlite3_step(stmt) != SQLITE_DONE){
+            log << "Adding user was not successful" << std::endl;
+            sqlite3_finalize(stmt);
+            return -1;
+        }
+
+        sqlite3_finalize(stmt);
+        log << "Adding user was successful" << std::endl;
+
+        return 0;
     }
-
-    sqlite3_free(zErrMsg);
-    log << "Adding user was successful" << std::endl;
-    return 0;
+    return -1;
 }
 
 /**
@@ -1481,20 +1527,27 @@ int Server::auth_callback(void *NotUsed, int argc, char **argv, char **azColName
  */
 int Server::remUser(const std::string &name) {
     log << "Removing user: " << name << std::endl;
-    char *zErrMsg = nullptr;
 
-    std::string sql = "DELETE FROM USERS WHERE USERNAME='" + name + "';";
+    sqlite3_stmt *stmt;
+    std::string query = "DELETE FROM USERS WHERE USERNAME = ?";
 
-    int rc = sqlite3_exec(DB, sql.c_str(), callback, this, &zErrMsg);
-    if(handleSQL(rc, zErrMsg, "remove user from") == -1) {
-        sqlite3_free(zErrMsg);
-        log << "Removing user was not successful" << std::endl;
+    if (sqlite3_prepare_v2(DB, query.c_str(), -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_STATIC);
+        int rc = sqlite3_step(stmt);  // will return SQLITE_DONE if successful
+        sqlite3_finalize(stmt);
+
+        if(rc != SQLITE_DONE) {
+            log << "Removing user was not successful" << std::endl;
+            return -1;
+        }
+
+        log << "Successfully removed user" << std::endl;
+        return 0;
+    }
+    else {
+        log << "Failed to prepare SQL statement" << std::endl;
         return -1;
     }
-
-    sqlite3_free(zErrMsg);
-    log << "Successfully removed user" << std::endl;
-    return 0;
 }
 
 /**
@@ -1570,7 +1623,7 @@ int Server::handleAuth(char *command) {
  *         - 0: The current working directory was successfully changed to the specified path.
  *         - -1: An error occurred while changing the current working directory.
  */
-int setCwd(const std::string &path) {
+int Server::setCwd(const std::string &path) {
     try {
         std::filesystem::current_path(path);
         log << "Filepath successfully changed to " << path << std::endl;
@@ -1578,4 +1631,28 @@ int setCwd(const std::string &path) {
     } catch (const std::filesystem::filesystem_error &e) {
         return -1;
     }
+}
+
+/**
+ * @brief Handles wrong usage of a command.
+ *
+ * @details
+ * This function is called when there is a wrong usage of a command. It logs an error message
+ * indicating the wrong usage along with the command. The error message is then sent to the
+ * client using the handleSend() function. If the message sending fails, an exception is thrown.
+ * Finally, a runtime_error exception is thrown with the error message as its message.
+ *
+ * @param command The command that was used incorrectly.
+ *
+ * @throw std::runtime_error If an error occurs while sending the error message.
+ * @throw std::runtime_error to indicate wrong usage.
+ */
+void Server::handleWrongUsage(const char *command) {
+    std::string message = std::format("Wrong usage in command {}", command);
+    log << message << std::endl;
+
+    if(handleSend(message) == -1)
+        throw std::runtime_error("Unable to send message.");
+
+    throw std::runtime_error(message);
 }

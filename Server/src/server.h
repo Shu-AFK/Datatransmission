@@ -102,6 +102,7 @@ private:
     int handleCommand(char *command);
     void handleTimeout();
     void handleStartupError(int move);
+    void handleWrongUsage(const char *command);
 
     int move_start();
     int remove_start();
