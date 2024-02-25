@@ -247,26 +247,22 @@ int Client::sendData(SOCKET clientSocket, std::string& cmd)
 }
 
 /**
- * @brief Receives data from the client socket.
- *
- * @details
- * This function receives data from the client socket character by character until a special
- * character '\f' is encountered. It stores the received data in a string 'ret'. If the received
- * character is '\v', it indicates that a file is being sent. The function receives the file data
- * and writes it to a file with the name specified in the 'cmd' parameter. The function returns
- * appropriate messages based on the success or failure of the operation.
- *
- * @param clientSocket The socket to receive data from.
- * @param cmd The name of the file to write if a file is received.
- * @return Returns a string message indicating the success or failure of the operation.
- *
- * @note This function assumes that the client socket is already connected and active.
- *       Upon successful file transfer, the function returns "File has been copied successfully!".
- *       If the connection is closed before completing the transfer, it returns "Connection closed".
- *       If any error occurs during the transfer, it returns an empty string.
- */
-#include <lz4.h>
-
+  * @brief Receives data from a client socket and stores it in a file.
+  *
+  * @details
+  * This function receives data from the specified client socket and stores it in a file,
+  * specified by the provided command string. If the received data is compressed, it will
+  * be decompressed before storing it in the file.
+  *
+  * @param clientSocket The client socket to receive data from.
+  * @param cmd The command string specifying the file to store the data in.
+  * @return Returns a string indicating the status of the operation.
+  *
+  * @note The function will continue to receive data until a '\f' character is received,
+  *       indicating the end of the data. If the connection is closed before the '\f'
+  *       character is received, the function will return "Connection closed". If an error
+  *       occurs during the receiving process, an empty string will be returned.
+  */
 std::string Client::recvData(SOCKET clientSocket, std::string& cmd) {
     std::string ret;
     std::string file_contents;
