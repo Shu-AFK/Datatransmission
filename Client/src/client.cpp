@@ -1,6 +1,6 @@
 #include <format>
 #include "client.h"
-
+#include <lz4.h>
 
 /**
  * @brief Runs the client program.
@@ -265,10 +265,15 @@ int Client::sendData(SOCKET clientSocket, std::string& cmd)
  *       If the connection is closed before completing the transfer, it returns "Connection closed".
  *       If any error occurs during the transfer, it returns an empty string.
  */
+#include <lz4.h>
+
 std::string Client::recvData(SOCKET clientSocket, std::string& cmd) {
     std::string ret;
     std::string file_contents;
     char recvChar;
+    bool isCompressed = false;
+    size_t originalSize = 0; // to store original size if it's compressed data
+    size_t compressedSize = 0;
 
     while(true) {
         int bytes_recvd = recv(clientSocket, &recvChar, 1, 0);
@@ -281,18 +286,32 @@ std::string Client::recvData(SOCKET clientSocket, std::string& cmd) {
                 bytes_recvd = recv(clientSocket, &recvChar, 1, 0);
                 if(bytes_recvd > 0) {
                     if(recvChar == '\v') {
-                        while(recvChar != '\f')
-                        {
-                            bytes_recvd = recv(clientSocket, &recvChar, 1, 0);
+                        if(isCompressed) {
+                            // Read the sizes (original then compressed sizes)
+                            recv(clientSocket, reinterpret_cast<char *>(&originalSize), sizeof(originalSize), 0);
+                            recv(clientSocket, reinterpret_cast<char *>(&compressedSize), sizeof(compressedSize), 0);
 
-                            if(bytes_recvd > 0)
-                                file_contents += recvChar;
+                            // Receive the compressed data
+                            char *compressedData = new char[compressedSize];
+                            recv(clientSocket, compressedData, compressedSize, 0);
 
-                            else if (bytes_recvd == 0) // connection closed
-                                return "Connection closed";
+                            // Allocate a buffer for decompressed data
+                            char *decompressedData = new char[originalSize];
 
-                            else // error
-                                return "";
+                            // Decompress the data
+                            int decompressedSize = LZ4_decompress_safe(compressedData, decompressedData, compressedSize, originalSize);
+
+                            if(decompressedSize < 0) {
+                                delete[] compressedData;
+                                delete[] decompressedData;
+                                return "An error occurred during decompression."; // in case of decompression error
+                            }
+
+                            // Assign the decompressed data back to file_contents
+                            file_contents = std::string(decompressedData, decompressedData + decompressedSize);
+
+                            delete[] compressedData;
+                            delete[] decompressedData;
                         }
 
                         shiftStrLeft(cmd, 8);
@@ -301,15 +320,23 @@ std::string Client::recvData(SOCKET clientSocket, std::string& cmd) {
                         output.close();
                         return "File has been copied successfully!";
                     }
+
+                    else if(recvChar == '\r') {
+                        isCompressed = true;
+                    }
                 }
             }
 
             ret += recvChar;
         }
 
-        else if (bytes_recvd == 0)
+        else if (bytes_recvd == 0) {
             return "Connection closed";
-        else
+        }
+
+        else {
             return "";
+        }
+
     }
 }

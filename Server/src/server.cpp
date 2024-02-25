@@ -1,4 +1,5 @@
 #include "server.h"
+#include <lz4.h>
 
 /**
  * @brief Handles the command received from the client.
@@ -630,18 +631,14 @@ int Server::handleRemoveFileCommand(char *fileName) {
 }
 
 /**
- * @brief Handles the `copy` command by sending the contents of a file to the client.
+ * @brief Handles the copy command.
  *
  * @details
- * This function takes a file name provided by the client and sends its contents
- * to the client. It first opens the file and reads its contents into a buffer.
- * The contents are then sent to the client over the network connection.
- * If any errors occur during the process, appropriate error messages will be printed,
- * and the function will return -1 to indicate failure.
+ * This function handles the copy command by copying the contents of the specified file to the client.
+ * If the file is larger than 1MB, it compresses the contents before sending.
  *
- * @param fileName The name of the file to be sent to the client.
- *
- * @return 0 if the operation is successful, -1 otherwise.
+ * @param fileName The name of the file to copy.
+ * @return 0 on success, -1 on failure.
  */
 int Server::handleCopyCommand(char *fileName) {
     shiftStrLeft(fileName, 8);
@@ -650,10 +647,41 @@ int Server::handleCopyCommand(char *fileName) {
     if(!input)
         return -1;
 
-    std::string file_contents = "\v\v";
+    std::string file_contents;
     char c;
     while(input.get(c))
         file_contents += c;
+
+    // Checks if the file is bigger than 1MB, if yes it's getting compressed before getting sent
+    std::filesystem::path file{fileName};
+    bool comp = false;
+    size_t originalSize = file_contents.size();
+
+    if(std::filesystem::file_size(file) > 1000000) {
+        int maxCompressedSize = LZ4_compressBound(static_cast<int>(file_contents.size()));
+        char *compressed = new char[maxCompressedSize];
+        int compressedSize = LZ4_compress_default(file_contents.c_str(), compressed, static_cast<int>(file_contents.size()), maxCompressedSize);
+        if (compressedSize < 0) {
+            // handle compression error
+            free(compressed);
+            input.close();
+            return -1;
+        }
+
+        comp = true;
+
+        // Now we will prepend our file_contents with the necessary data
+        file_contents.clear();
+        file_contents += "\v\v\r";
+        file_contents += std::string(reinterpret_cast<char*>(&originalSize), sizeof(originalSize)); // Add original size
+        file_contents += std::string(reinterpret_cast<char*>(&compressedSize), sizeof(compressedSize)); // Add compressed size
+        file_contents.append(compressed, compressed + compressedSize); // Add compressed data
+
+        free(compressed);
+    }
+
+    if(!comp)
+        file_contents.insert(0, "\v\v");
 
     if(handleSend(file_contents) == -1) {
         input.close();
