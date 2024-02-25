@@ -11,6 +11,8 @@ This project relies on the following libraries and tools:
 - [CMake](https://cmake.org/) (version 3.12 or higher) for the build system.
 - [SQLite3](https://www.sqlite.org/) for users' database handling.
 - [Winsock Library](https://docs.microsoft.com/en-us/windows/win32/winsock/windows-sockets-start-page-2) (`Ws2_32.lib`) for TCP/IP networking.
+- [LZ4](https://lz4.github.io/lz4/) for efficient and fast data compression.
+- [Vcpkg](https://github.com/microsoft/vcpkg) for managing C++ libraries on Windows, macOS, and Linux.
 - A C++ Compiler with support for C++23 standard.
 
 ## 3. Full Unix Commands and Extensions implemented
