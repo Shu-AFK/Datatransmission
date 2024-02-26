@@ -1,6 +1,7 @@
 #include <format>
 #include "client.h"
 #include <lz4.h>
+#include <filesystem>
 
 /**
  * @brief Runs the client program.
@@ -15,6 +16,7 @@
 void Client::run() {
     bool isCopyFrom = false;
 
+start:
     while (true) {
         // Clears the strings
         std::string command;
@@ -34,7 +36,8 @@ void Client::run() {
         if(iSendResult == -1) {
             std::string errorMessage = "Failed to send data, error: " + std::to_string(WSAGetLastError());
             log << errorMessage << std::endl;
-            throw std::runtime_error(errorMessage);
+            std::cerr << errorMessage << std::endl;
+            goto start;
         }
 
         if(isCopyFrom) {
@@ -44,35 +47,52 @@ void Client::run() {
             if(!input) {
                 std::string errorMessage = "Failed to open file";
                 std::cerr << errorMessage << std::endl;
-                throw std::runtime_error(errorMessage);
+                log << errorMessage << std::endl;
+                goto start;
             }
 
             // Sends the file send sequence
-            iSendResult = send(ConnectSocket, "\v\v", 2, 0);
-            if(iSendResult == SOCKET_ERROR) {
-                std::string errormsg = std::format("Failed to send file send sequence, error: {}", std::to_string(WSAGetLastError()));
-                std::cerr << errormsg << std::endl;
-                throw std::runtime_error(errormsg);
-            }
+            std::string file_contents;
+            char c;
+            while(input.get(c))
+                file_contents += c;
 
-            std::string row;
-            while(std::getline(input, row)) {
-                row += '\n';
-                iSendResult = send(ConnectSocket, row.c_str(), (int) row.length(), 0);
-                if(iSendResult == SOCKET_ERROR) {
-                    std::string errormsg = std::format("Failed to send file content, error: {}", std::to_string(WSAGetLastError()));
-                    std::cerr << errormsg << std::endl;
-                    throw std::runtime_error(errormsg);
+            input.close();
+
+            // Checks if the file is bigger than 1MB, if yes it's getting compressed before getting sent
+            std::filesystem::path file{command};
+            size_t originalSize = file_contents.size();
+
+            if(std::filesystem::file_size(file) > 1000000) {
+                int maxCompressedSize = LZ4_compressBound(static_cast<int>(originalSize));
+                char *compressed = new char[maxCompressedSize];
+                int compressedSize = LZ4_compress_default(file_contents.c_str(), compressed, static_cast<int>(file_contents.size()), maxCompressedSize);
+
+                if(compressedSize < 0) {
+                    free(compressed);
+                    std::cerr << "Error in compressing file" << std::endl;
+                    log << "Error in compressing file" << std::endl;
+                    goto start;
                 }
+
+                file_contents.clear();
+                file_contents += "\r";
+                file_contents += std::string(reinterpret_cast<char*>(&originalSize), sizeof(originalSize)); // Add original size
+                file_contents += std::string(reinterpret_cast<char*>(&compressedSize), sizeof(compressedSize)); // Add compressed size
+                file_contents.append(compressed, compressed + compressedSize); // Add compressed data
+
+                free(compressed);
             }
 
-            // Sends the end sequence
-            char endMark = '\f';
-            iSendResult = send(ConnectSocket, &endMark, 1, 0);
+            file_contents.insert(0, "\v\v");
+            file_contents += '\f';
+
+            iSendResult = send(ConnectSocket, file_contents.c_str(), (int) file_contents.length(), 0);
             if(iSendResult == SOCKET_ERROR) {
-                std::string errormsg = std::format("Failed to send file send end sequence, error: {}", std::to_string(WSAGetLastError()));
+                std::string errormsg = std::format("Failed to send file contents, error: {}", std::to_string(WSAGetLastError()));
                 std::cerr << errormsg << std::endl;
-                throw std::runtime_error(errormsg);
+                log << errormsg << std::endl;
+                goto start;
             }
         }
 
@@ -81,7 +101,8 @@ void Client::run() {
         if (response.empty()) {
             std::string errorMessage = "Failed to receive data, error: " + std::to_string(WSAGetLastError());
             log << errorMessage << std::endl;
-            throw std::runtime_error(errorMessage);
+            std::cerr << errorMessage << std::endl;
+            goto start;
         }
 
         else if (response == "Connection closed") {
@@ -100,6 +121,7 @@ void Client::run() {
     iResult = shutdown(ConnectSocket, SD_SEND);
     if (iResult == SOCKET_ERROR) {
         printf("shutdown failed with error: %d\n", WSAGetLastError());
+        throw std::runtime_error(std::format("shutdown failed with error: {}", WSAGetLastError()));
     }
 }
 
