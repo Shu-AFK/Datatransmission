@@ -35,7 +35,7 @@ int run_init(std::basic_string<char> port) {
  *
  * @details
  * This function creates a start script with the specified current working directory (cwd) and port.
- * The start script is written to the relative path ..\..\Host\src\scripts\run_exec.bat.
+ * The start script is written to the relative path ..\..\Server\src\scripts\run_exec.bat.
  *
  * @param cwd The current working directory for the start script.
  * @param port The port parameter for the start script.
@@ -47,7 +47,7 @@ int create_start_script(const std::string& cwd, const std::string& port) {
     if(!run_script)
         return 1;
 
-    run_script << std::format(R"(start "" "{}\Server.exe" "{}")", cwd, port);
+    run_script << std::format(R"(start "" "{}\Server.exe" "-p {}")", cwd, port);
     run_script.close();
     return 0;
 }
