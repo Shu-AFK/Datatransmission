@@ -11,6 +11,7 @@ This project relies on the following libraries and tools:
 - [CMake](https://cmake.org/) (version 3.12 or higher) for the build system.
 - [SQLite3](https://www.sqlite.org/) for users' database handling.
 - [Winsock Library](https://docs.microsoft.com/en-us/windows/win32/winsock/windows-sockets-start-page-2) (`Ws2_32.lib`) for TCP/IP networking.
+- [LZ4](https://github.com/lz4/lz4) - Extremely Fast Compression algorithm.
 - A C++ Compiler with support for C++23 standard.
 
 ## 3. Full Unix Commands and Extensions implemented
