@@ -94,7 +94,7 @@ cd Datatransmission
 
 Next, you'll need to build the project. You can do this by running the provided `build.bat` script. In the command prompt, execute the script like this: (make sure the folder with the sqlite3 .dll is in your PATH)
 ```shell
-.\build.bat "C:\path\to\SQLite"
+.\build.bat "C:\path\to\SQLite" "C:\path\to\vcpkg"
 ```
 
 The batch script will create a `build` directory if one doesn't exist, configure the project using CMake with the provided SQLite path, and then build the project in release mode.
