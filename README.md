@@ -32,7 +32,7 @@ This project relies on the following libraries and tools:
 | `touch` | Creates a new empty file.                                  | `touch new_file.txt`           |
 | `mv`    | Moves or renames files or directories.                     | `mv old_name.txt new_name.txt` |
 | `cp`    | Copies files or directories.                               | `cp source_file target_file`   |
-| `cut`   | Cuts the file on the server and moves it to the client     | `cut abc.txt`                  |
+| `cut`   | Cuts the file on the server and moves it to the client.    | `cut abc.txt`                  |
 | `find`  | Searches for files in a directory hierarchy.               | `find . -name my_file.txt`     |
 | `grep`  | Searches text using patterns.                              | `grep "my pattern" file.txt`   |
 | `exit`  | Exits the shell.                                           | `exit`                         |
