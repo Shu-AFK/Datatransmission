@@ -1,4 +1,5 @@
 #include "server.h"
+#include <lz4.h>
 
 /**
  * @brief Handles the command received from the client.
@@ -630,18 +631,14 @@ int Server::handleRemoveFileCommand(char *fileName) {
 }
 
 /**
- * @brief Handles the `copy` command by sending the contents of a file to the client.
+ * @brief Handles the copy command.
  *
  * @details
- * This function takes a file name provided by the client and sends its contents
- * to the client. It first opens the file and reads its contents into a buffer.
- * The contents are then sent to the client over the network connection.
- * If any errors occur during the process, appropriate error messages will be printed,
- * and the function will return -1 to indicate failure.
+ * This function handles the copy command by copying the contents of the specified file to the client.
+ * If the file is larger than 1MB, it compresses the contents before sending.
  *
- * @param fileName The name of the file to be sent to the client.
- *
- * @return 0 if the operation is successful, -1 otherwise.
+ * @param fileName The name of the file to copy.
+ * @return 0 on success, -1 on failure.
  */
 int Server::handleCopyCommand(char *fileName) {
     shiftStrLeft(fileName, 8);
@@ -650,10 +647,43 @@ int Server::handleCopyCommand(char *fileName) {
     if(!input)
         return -1;
 
-    std::string file_contents = "\v\v";
+    std::string file_contents;
     char c;
     while(input.get(c))
         file_contents += c;
+
+    // Checks if the file is bigger than 1MB, if yes it's getting compressed before getting sent
+    std::filesystem::path file{fileName};
+    bool comp = false;
+    size_t originalSize = file_contents.size();
+
+    if(std::filesystem::file_size(file) > 1000000) {
+        int maxCompressedSize = LZ4_compressBound(static_cast<int>(originalSize));
+        char *compressed = new char[maxCompressedSize];
+        int compressedSize = LZ4_compress_default(file_contents.c_str(), compressed, static_cast<int>(file_contents.size()), maxCompressedSize);
+        if (compressedSize < 0) {
+            // handle compression error
+            free(compressed);
+            input.close();
+            std::cerr << "Error in compressing file" << std::endl;
+            log << "Error in compressing file" << std::endl;
+            return -1;
+        }
+
+        comp = true;
+
+        // Now we will prepend our file_contents with the necessary data
+        file_contents.clear();
+        file_contents += "\v\v\r";
+        file_contents += std::string(reinterpret_cast<char*>(&originalSize), sizeof(originalSize)); // Add original size
+        file_contents += std::string(reinterpret_cast<char*>(&compressedSize), sizeof(compressedSize)); // Add compressed size
+        file_contents.append(compressed, compressed + compressedSize); // Add compressed data
+
+        free(compressed);
+    }
+
+    if(!comp)
+        file_contents.insert(0, "\v\v");
 
     if(handleSend(file_contents) == -1) {
         input.close();
@@ -1003,75 +1033,100 @@ int Server::handleGrepCommand(char *command) {
     return 0;
 }
 
+
 /**
- * @brief Handles the CopyFrom command.
+ * @brief Handles the copy_from command received from the client.
  *
  * @details
- * This function is called to handle the CopyFrom command received from the client.
- * It receives the file content from the client and saves it to a file with the given
- * filename. It then sends a success message back to the client.
+ * This function is responsible for handling the copy_from command received from the client.
+ * It receives the file content from the client and saves it to the specified file.
+ * If the file is compressed, it decompresses the data before saving it.
  *
- * @param command The command string received from the client.
- *
- * @return 0 if the operation is successful, -1 if there is an error with the connection,
- *         -2 if there is a timeout or error in sending the file.
+ * @param command The command received from the client.
+ * @return 0 if the file has been received successfully, -1 otherwise.
  */
 int Server::handleCopyFromCommand(char *command) {
+    // Remove the copy_from text from the command
     shiftStrLeft(command, 10);
 
     std::string filename = command;
     std::string fileContent;
-    char recvbyte;
-    auto timeStart = std::chrono::system_clock::now();;
-    bool sequenceStart = false;
+    bool isCompressed = false;
+    size_t originalSize;
+    size_t compressedSize;
+    int bytes_recvd;
+
+    // buffer for storing file data
+    char buf;
+
     // Get the whole file content
-    do {
-        iResult = recv(ClientSocket, &recvbyte, 1, 0);
-        if(iResult > 0) {
-            auto elapsedSeconds = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - timeStart).count();
-
-            // Gets the file content if the
-            if(sequenceStart) {
-                if(elapsedSeconds >= 500) // Timed out or error in sending file
-                    return -2;
-                if(recvbyte == '\f')
-                    break;
-                fileContent += recvbyte;
-                continue;
-            }
-
-            // Checks for the file transmit start sequence
-            if(recvbyte == '\v') {
-                iResult = recv(ClientSocket, &recvbyte, 1, 0);
-                if(recvbyte > 0) {
-                    if(recvbyte == '\v')
-                        sequenceStart = true;
-                }
-                else if(recvbyte <= 0)
-                    return -1; // Connection closed or error
-            }
-
-            if(elapsedSeconds >= 10) // Checks if connection timed out
-                return -2;
-        }
-        else if(recvbyte <= 0) // Connection closed or error
+    while (true) {
+        // receive one character
+        bytes_recvd = recv(ClientSocket, &buf, 1, 0);
+        if (bytes_recvd == 0)
+            break;  // connection closed
+        if (bytes_recvd == SOCKET_ERROR) {
+            // handle error condition
             return -1;
-    } while(true);
+        }
 
-    std::ofstream output(filename);
-    if(!output) {
-        std::cerr << "Error in opening " << filename << std::endl;
-        log << "Error in opening " << filename << std::endl;
-        return -1;
+        if (buf == '\v') {
+            // end the file receive process
+            break;
+        }
+
+        if (buf == '\r') {
+            isCompressed = true;
+            continue;
+        }
+
+        if (isCompressed) {
+            // collect data for original and compressed sizes
+            std::string sizeData;
+            for (int i = 0; i < sizeof(originalSize) + sizeof(compressedSize); ++i) {
+                recv(ClientSocket, &buf, 1, 0);
+                sizeData += buf;
+            }
+
+            originalSize = *(size_t*)sizeData.substr(0, sizeof(originalSize)).data();
+            compressedSize = *(size_t*)sizeData.substr(sizeof(originalSize), sizeof(compressedSize)).data();
+
+            // Compressed data
+            std::string compressedData;
+            for (int i = 0; i < compressedSize; ++i) {
+                recv(ClientSocket, &buf, 1, 0);
+                compressedData += buf;
+            }
+
+            // Allocate a buffer for decompressed data
+            char *decompressedData = new char[originalSize];
+
+            // Decompress the data
+            int decompressedSize = LZ4_decompress_safe(compressedData.c_str(), decompressedData, compressedSize, originalSize);
+            if (decompressedSize < 0) {
+                delete[] decompressedData;
+                return -1;  // decompression error
+            }
+
+            // Save the decompressed data back to fileContent
+            fileContent += std::string(decompressedData, decompressedData + decompressedSize);
+            delete[] decompressedData;
+            isCompressed = false;
+        }
+
+        else {
+            fileContent += buf;
+        }
     }
 
-    // Writes the transmitted file content into the output file
+    // Write data into file
+    std::ofstream output(filename);
     output << fileContent;
     output.close();
 
-    std::string sendmsg = std::format("{} was successfully created!", filename);
-    if(handleSend(sendmsg) == -1)
-        return -1;
+    // Inform of successful reception of file
+    std::cout << "File has been received successfully" << std::endl;
+    log << "File has been received successfully" << std::endl;
 
     return 0;
 }

@@ -1,6 +1,7 @@
 #include <format>
 #include "client.h"
-
+#include <lz4.h>
+#include <filesystem>
 
 /**
  * @brief Runs the client program.
@@ -15,6 +16,7 @@
 void Client::run() {
     bool isCopyFrom = false;
 
+start:
     while (true) {
         // Clears the strings
         std::string command;
@@ -34,7 +36,8 @@ void Client::run() {
         if(iSendResult == -1) {
             std::string errorMessage = "Failed to send data, error: " + std::to_string(WSAGetLastError());
             log << errorMessage << std::endl;
-            throw std::runtime_error(errorMessage);
+            std::cerr << errorMessage << std::endl;
+            goto start;
         }
 
         if(isCopyFrom) {
@@ -44,35 +47,52 @@ void Client::run() {
             if(!input) {
                 std::string errorMessage = "Failed to open file";
                 std::cerr << errorMessage << std::endl;
-                throw std::runtime_error(errorMessage);
+                log << errorMessage << std::endl;
+                goto start;
             }
 
             // Sends the file send sequence
-            iSendResult = send(ConnectSocket, "\v\v", 2, 0);
-            if(iSendResult == SOCKET_ERROR) {
-                std::string errormsg = std::format("Failed to send file send sequence, error: {}", std::to_string(WSAGetLastError()));
-                std::cerr << errormsg << std::endl;
-                throw std::runtime_error(errormsg);
-            }
+            std::string file_contents;
+            char c;
+            while(input.get(c))
+                file_contents += c;
 
-            std::string row;
-            while(std::getline(input, row)) {
-                row += '\n';
-                iSendResult = send(ConnectSocket, row.c_str(), (int) row.length(), 0);
-                if(iSendResult == SOCKET_ERROR) {
-                    std::string errormsg = std::format("Failed to send file content, error: {}", std::to_string(WSAGetLastError()));
-                    std::cerr << errormsg << std::endl;
-                    throw std::runtime_error(errormsg);
+            input.close();
+
+            // Checks if the file is bigger than 1MB, if yes it's getting compressed before getting sent
+            std::filesystem::path file{command};
+            size_t originalSize = file_contents.size();
+
+            if(std::filesystem::file_size(file) > 1000000) {
+                int maxCompressedSize = LZ4_compressBound(static_cast<int>(originalSize));
+                char *compressed = new char[maxCompressedSize];
+                int compressedSize = LZ4_compress_default(file_contents.c_str(), compressed, static_cast<int>(file_contents.size()), maxCompressedSize);
+
+                if(compressedSize < 0) {
+                    free(compressed);
+                    std::cerr << "Error in compressing file" << std::endl;
+                    log << "Error in compressing file" << std::endl;
+                    goto start;
                 }
+
+                file_contents.clear();
+                file_contents += "\r";
+                file_contents += std::string(reinterpret_cast<char*>(&originalSize), sizeof(originalSize)); // Add original size
+                file_contents += std::string(reinterpret_cast<char*>(&compressedSize), sizeof(compressedSize)); // Add compressed size
+                file_contents.append(compressed, compressed + compressedSize); // Add compressed data
+
+                free(compressed);
             }
 
-            // Sends the end sequence
-            char endMark = '\f';
-            iSendResult = send(ConnectSocket, &endMark, 1, 0);
+            file_contents.insert(0, "\v\v");
+            file_contents += '\f';
+
+            iSendResult = send(ConnectSocket, file_contents.c_str(), (int) file_contents.length(), 0);
             if(iSendResult == SOCKET_ERROR) {
-                std::string errormsg = std::format("Failed to send file send end sequence, error: {}", std::to_string(WSAGetLastError()));
+                std::string errormsg = std::format("Failed to send file contents, error: {}", std::to_string(WSAGetLastError()));
                 std::cerr << errormsg << std::endl;
-                throw std::runtime_error(errormsg);
+                log << errormsg << std::endl;
+                goto start;
             }
         }
 
@@ -81,7 +101,8 @@ void Client::run() {
         if (response.empty()) {
             std::string errorMessage = "Failed to receive data, error: " + std::to_string(WSAGetLastError());
             log << errorMessage << std::endl;
-            throw std::runtime_error(errorMessage);
+            std::cerr << errorMessage << std::endl;
+            goto start;
         }
 
         else if (response == "Connection closed") {
@@ -100,6 +121,7 @@ void Client::run() {
     iResult = shutdown(ConnectSocket, SD_SEND);
     if (iResult == SOCKET_ERROR) {
         printf("shutdown failed with error: %d\n", WSAGetLastError());
+        throw std::runtime_error(std::format("shutdown failed with error: {}", WSAGetLastError()));
     }
 }
 
@@ -247,28 +269,29 @@ int Client::sendData(SOCKET clientSocket, std::string& cmd)
 }
 
 /**
- * @brief Receives data from the client socket.
- *
- * @details
- * This function receives data from the client socket character by character until a special
- * character '\f' is encountered. It stores the received data in a string 'ret'. If the received
- * character is '\v', it indicates that a file is being sent. The function receives the file data
- * and writes it to a file with the name specified in the 'cmd' parameter. The function returns
- * appropriate messages based on the success or failure of the operation.
- *
- * @param clientSocket The socket to receive data from.
- * @param cmd The name of the file to write if a file is received.
- * @return Returns a string message indicating the success or failure of the operation.
- *
- * @note This function assumes that the client socket is already connected and active.
- *       Upon successful file transfer, the function returns "File has been copied successfully!".
- *       If the connection is closed before completing the transfer, it returns "Connection closed".
- *       If any error occurs during the transfer, it returns an empty string.
- */
+  * @brief Receives data from a client socket and stores it in a file.
+  *
+  * @details
+  * This function receives data from the specified client socket and stores it in a file,
+  * specified by the provided command string. If the received data is compressed, it will
+  * be decompressed before storing it in the file.
+  *
+  * @param clientSocket The client socket to receive data from.
+  * @param cmd The command string specifying the file to store the data in.
+  * @return Returns a string indicating the status of the operation.
+  *
+  * @note The function will continue to receive data until a '\f' character is received,
+  *       indicating the end of the data. If the connection is closed before the '\f'
+  *       character is received, the function will return "Connection closed". If an error
+  *       occurs during the receiving process, an empty string will be returned.
+  */
 std::string Client::recvData(SOCKET clientSocket, std::string& cmd) {
     std::string ret;
     std::string file_contents;
     char recvChar;
+    bool isCompressed = false;
+    size_t originalSize = 0; // to store original size if it's compressed data
+    size_t compressedSize = 0;
 
     while(true) {
         int bytes_recvd = recv(clientSocket, &recvChar, 1, 0);
@@ -281,18 +304,32 @@ std::string Client::recvData(SOCKET clientSocket, std::string& cmd) {
                 bytes_recvd = recv(clientSocket, &recvChar, 1, 0);
                 if(bytes_recvd > 0) {
                     if(recvChar == '\v') {
-                        while(recvChar != '\f')
-                        {
-                            bytes_recvd = recv(clientSocket, &recvChar, 1, 0);
+                        if(isCompressed) {
+                            // Read the sizes (original then compressed sizes)
+                            recv(clientSocket, reinterpret_cast<char *>(&originalSize), sizeof(originalSize), 0);
+                            recv(clientSocket, reinterpret_cast<char *>(&compressedSize), sizeof(compressedSize), 0);
 
-                            if(bytes_recvd > 0)
-                                file_contents += recvChar;
+                            // Receive the compressed data
+                            char *compressedData = new char[compressedSize];
+                            recv(clientSocket, compressedData, compressedSize, 0);
 
-                            else if (bytes_recvd == 0) // connection closed
-                                return "Connection closed";
+                            // Allocate a buffer for decompressed data
+                            char *decompressedData = new char[originalSize];
 
-                            else // error
-                                return "";
+                            // Decompress the data
+                            int decompressedSize = LZ4_decompress_safe(compressedData, decompressedData, compressedSize, originalSize);
+
+                            if(decompressedSize < 0) {
+                                delete[] compressedData;
+                                delete[] decompressedData;
+                                return "An error occurred during decompression."; // in case of decompression error
+                            }
+
+                            // Assign the decompressed data back to file_contents
+                            file_contents = std::string(decompressedData, decompressedData + decompressedSize);
+
+                            delete[] compressedData;
+                            delete[] decompressedData;
                         }
 
                         shiftStrLeft(cmd, 8);
@@ -301,15 +338,23 @@ std::string Client::recvData(SOCKET clientSocket, std::string& cmd) {
                         output.close();
                         return "File has been copied successfully!";
                     }
+
+                    else if(recvChar == '\r') {
+                        isCompressed = true;
+                    }
                 }
             }
 
             ret += recvChar;
         }
 
-        else if (bytes_recvd == 0)
+        else if (bytes_recvd == 0) {
             return "Connection closed";
-        else
+        }
+
+        else {
             return "";
+        }
+
     }
 }
