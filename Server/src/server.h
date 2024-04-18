@@ -94,6 +94,7 @@ private:
     int handleCopyFromCommand(char *command);
     int handleRunCommand(char *command);
     int handleCheckInStartup();
+    int handleCutCommand(char *command);
 
     // Misc functions
     static int shiftStrLeft(char *str, int num);

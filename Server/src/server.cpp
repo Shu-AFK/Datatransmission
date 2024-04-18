@@ -83,6 +83,7 @@ int Server::handleCommand(char* command) {
             return 0;
         }
         else if (strncmp(command, "copy_to ", 8) == 0) {
+            shiftStrLeft(command, 8);
             if(handleCopyCommand(command) == -1) {
                 handleError("copy_pc");
             }
@@ -208,6 +209,13 @@ int Server::handleCommand(char* command) {
             if(remUser(command) == -1)
                 handleError("remove_user");
 
+            return 0;
+        }
+        else if(strncmp(command, "cut ", 4) == 0) {
+            shiftStrLeft(command, 4);
+            if(handleCutCommand(command) == -1) {
+                handleError("cut");
+            }
             return 0;
         }
         else {
@@ -641,8 +649,6 @@ int Server::handleRemoveFileCommand(char *fileName) {
  * @return 0 on success, -1 on failure.
  */
 int Server::handleCopyCommand(char *fileName) {
-    shiftStrLeft(fileName, 8);
-
     std::ifstream input(fileName);
     if(!input)
         return -1;
@@ -1710,4 +1716,28 @@ void Server::handleWrongUsage(const char *command) {
         throw std::runtime_error("Unable to send message.");
 
     throw std::runtime_error(message);
+}
+
+/**
+ * @brief Handles the cut command by copying the file and removing the original fil
+ *
+ * @param command The name of the file to cut.
+ * @return 0 on success, -1 on failure.
+ */
+int Server::handleCutCommand(char *command) {
+    if(handleCopyCommand(command) == -1) {
+        handleError("cut");
+        return -1;
+    }
+
+    if(remove(command) != 0) {
+        handleSend(std::format("Failed to remove file {}", command));
+        return -1;
+    } else {
+        std::string success = std::format("Successfully cut {}", command);
+        std::cout << success << std::endl;
+        log << success << std::endl;
+    }
+
+    return 0;
 }
