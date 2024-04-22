@@ -1168,7 +1168,7 @@ int Server::move_start() {
     if(inStartup)
         return -2;
 
-    if(system(R"(..\..\Server\src\scripts\move_startup.bat)") != 0)
+    if(system(R"(..\..\..\Server\src\scripts\move_startup.bat)") != 0)
         return -1;
 
     inStartup = true;
@@ -1197,7 +1197,7 @@ int Server::remove_start() {
         return -2;
 
     std::filesystem::path cwd = std::filesystem::current_path();
-    std::string command = std::format(R"(..\..\Server\src\scripts\remove_startup.bat {})", cwd.string());
+    std::string command = std::format(R"(..\..\..\Server\src\scripts\remove_startup.bat {})", cwd.string());
     int exit_code = std::system(command.c_str());
 
     if(exit_code == 1) {
@@ -1625,7 +1625,7 @@ int Server::addStartup() {
     if(inStartup)
         return -2;
 
-    if(system(R"(..\..\Server\src\scripts\move_startup.bat)") != 0)
+    if(system(R"(..\..\..\Server\src\scripts\move_startup.bat)") != 0)
         return -1;
 
     inStartup = true;
