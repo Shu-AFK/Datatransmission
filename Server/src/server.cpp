@@ -1356,18 +1356,25 @@ int Server::auth(const std::string &username, const std::string &password) {
 
     std::string sql = "SELECT * FROM USERS WHERE USERNAME='" + username + "' AND PASSWORD='" + new_pass + "';";
 
-    int rc = sqlite3_exec(DB, sql.c_str(), auth_callback, 0, &zErrMsg);
+    bool authenticated = false;
+
+    int rc = sqlite3_exec(DB, sql.c_str(), auth_callback, (void *)&authenticated, &zErrMsg);
 
     if(rc != SQLITE_OK){
         fprintf(stderr, "SQL error: %s\n", zErrMsg);
-        sqlite3_free(zErrMsg);
-        log << "Authentication was not successful" << std::endl;
-        return -1;
+        log << "Authentication was not successful due to SQL error" << std::endl;
+        std::cout << "Authentication was not successful due to SQL error" << std::endl;
+    } else if(!authenticated) {
+        log << "Authentication was not successful, user not found" << std::endl;
+        std::cout << "Authentication was not successful, user not found" << std::endl;
+    } else {
+        log << "Authentication was successful" << std::endl;
+        std::cout << "Authentication was successful" << std::endl;
+        return 0;
     }
 
     sqlite3_free(zErrMsg);
-    log << "Authentication was successful" << std::endl;
-    return 0;
+    return -1;
 }
 
 /**
@@ -1572,8 +1579,10 @@ int Server::handleSQL(int rc, const char *zErrMsg, const char *operation) {
  *
  * @return The number of columns in the result row.
  */
-int Server::auth_callback(void *NotUsed, int argc, char **argv, char **azColName) {
-    return argc;
+int Server::auth_callback(void *data, int argc, char **argv, char **azColName) {
+    bool *authenticated = reinterpret_cast<bool *>(data);
+    *authenticated = true;
+    return 0;
 }
 
 /**
