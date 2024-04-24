@@ -3,6 +3,7 @@
 #include <lz4.h>
 #include <filesystem>
 
+#define RECVBUFLENGTH 1000000
 /**
  * @brief Runs the client program.
  *
@@ -252,7 +253,7 @@ int Client::shiftStrLeft(std::string &str, int num) {
  * @param cmd The command to send.
  * @return 0 if the data is successfully sent, -1 otherwise.
  */
-int Client::sendData(SOCKET clientSocket, std::string& cmd)
+int Client::sendData(SOCKET clientSocket, std::string cmd)
 {
     log << cmd << std::endl;
     cmd += '\f';
@@ -285,13 +286,14 @@ int Client::sendData(SOCKET clientSocket, std::string& cmd)
   *       character is received, the function will return "Connection closed". If an error
   *       occurs during the receiving process, an empty string will be returned.
   */
-std::string Client::recvData(SOCKET clientSocket, std::string& cmd) {
+std::string Client::recvData(SOCKET clientSocket, std::string cmd) {
     std::string ret;
     std::string file_contents;
     char recvChar;
     bool isCompressed = false;
     size_t originalSize = 0; // to store original size if it's compressed data
     size_t compressedSize = 0;
+	char recvBuf[RECVBUFLENGTH];
 
     while(true) {
         int bytes_recvd = recv(clientSocket, &recvChar, 1, 0);
@@ -331,12 +333,26 @@ std::string Client::recvData(SOCKET clientSocket, std::string& cmd) {
                             delete[] compressedData;
                             delete[] decompressedData;
                         }
+						else {
+							int nBytes = recv(clientSocket, recvBuf, RECVBUFLENGTH, 0); // receive if file less, then 1 Mb
+							file_contents.assign(recvBuf, nBytes -1); // -1 for removing \f
+						}
+						
+						std::string msg;
+                        if (cmd.compare(0, 8, "copy_to ") == 0) {
+							shiftStrLeft(cmd, 8);
+							msg = "copied";
+						}
+						else if (cmd.compare(0, 4, "cut ") == 0) {
+							shiftStrLeft(cmd, 4);
+							msg = "cut";
+						}
 
-                        shiftStrLeft(cmd, 8);
-                        std::ofstream output(cmd);
-                        output << file_contents;
-                        output.close();
-                        return "File has been copied successfully!";
+						std::ofstream output(cmd, std::ios::out | std::ios::binary);
+						output << file_contents;
+						output.close();
+						std::string ret = std::format("File has been {} successfully!", msg);
+						return ret;
                     }
 
                     else if(recvChar == '\r') {
