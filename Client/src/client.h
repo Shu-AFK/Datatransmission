@@ -54,8 +54,8 @@ private:
     void initServerConnection(const char *server_name);
     SOCKET createAndConnectSocket();
     static int shiftStrLeft(std::string &str, int num);
-    int sendData(SOCKET clientSocket, std::string& cmd);
-    static std::string recvData(SOCKET clientSocket, std::string& cmd);
+    int sendData(SOCKET clientSocket, std::string cmd);
+    static std::string recvData(SOCKET clientSocket, std::string cmd);
 
     WSADATA wsaData;
     SOCKET ConnectSocket;
