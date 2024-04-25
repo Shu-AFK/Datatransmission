@@ -56,12 +56,14 @@
 #include <sstream>
 #include <chrono>
 #include <sqlite3.h>
+#include <unordered_map>
 
 class Server {
 private:
     static constexpr const int DEFAULT_BUFLEN = 512;
     SOCKET ClientSocket = INVALID_SOCKET;
     SOCKET ListenSocket = INVALID_SOCKET;
+    SOCKET LastSock = INVALID_SOCKET;
     std::ofstream log;
     std::fstream settings;
     WSADATA wsaData;
@@ -69,41 +71,42 @@ private:
     std::filesystem::path settingsPath;
     bool inStartup = false;
     int iResult;
-    struct addrinfo *result = nullptr, *ptr = nullptr, hints;
+    struct addrinfo* result = nullptr, * ptr = nullptr, hints;
     char recvbuf[DEFAULT_BUFLEN];
     int recvbuflen = DEFAULT_BUFLEN;
     std::string db_name = "users.db";
     sqlite3* DB;
+    std::unordered_map<SOCKET, std::string> userMap;
 
     int handlePwdCommand();
     static void handleExitCommand();
     int handleChangeDirectoryCommand(const char* path);
-    int handleLsCommand(char *command);
+    int handleLsCommand(char* command);
     int sendCmdDoesntExist();
-    int handleMakeDirectoryCommand(char *path);
-    int handleTouchFileCommand(char *fileName);
-    int handleRemoveDirectoryCommand(char *path);
-    int handleRemoveFileCommand(char *fileName);
-    int handleCopyCommand(char *fileName);
-    int handleCatCommand(char *command);
-    int handleEchoCommand(char *command);
-    int handleMoveCommand(char *command);
-    int handleCpCommand(char *command);
-    int handleFindCommand(char *command);
-    int handleGrepCommand(char *command);
-    int handleCopyFromCommand(char *command);
-    int handleRunCommand(char *command);
+    int handleMakeDirectoryCommand(char* path);
+    int handleTouchFileCommand(char* fileName);
+    int handleRemoveDirectoryCommand(char* path);
+    int handleRemoveFileCommand(char* fileName);
+    int handleCopyCommand(char* fileName);
+    int handleCatCommand(char* command);
+    int handleEchoCommand(char* command);
+    int handleMoveCommand(char* command);
+    int handleCpCommand(char* command);
+    int handleFindCommand(char* command);
+    int handleGrepCommand(char* command);
+    int handleCopyFromCommand(char* command);
+    int handleRunCommand(char* command);
     int handleCheckInStartup();
-    int handleCutCommand(char *command);
+    int handleCutCommand(char* command);
 
     // Misc functions
-    static int shiftStrLeft(char *str, int num);
-    int handleSend(std::string sen);
-    void handleError(const char *command);
-    int handleCommand(char *command);
+    static int shiftStrLeft(char* str, int num);
+    int handleSend(std::string sen, SOCKET sock);
+    void handleError(const char* command);
+    int handleCommand(char* command);
     void handleTimeout();
     void handleStartupError(int move);
-    void handleWrongUsage(const char *command);
+    void handleWrongUsage(const char* command);
 
     int move_start();
     int remove_start();
@@ -113,12 +116,12 @@ private:
 
     // Database
     int initDB();
-    static int callback(void *instance, int argc, char **argv, char **azColName);
-    int callbackImpl(int argc, char **argv, char **azColName);
+    static int callback(void* instance, int argc, char** argv, char** azColName);
+    int callbackImpl(int argc, char** argv, char** azColName);
     bool dbIsEmpty();
-    int handleSQL(int rc, const char *zErrMsg, const char *operation);
-    static int auth_callback(void *NotUsed, int argc, char **argv, char**azColName);
-    int auth(const std::string &username, const std::string &password);
+    int handleSQL(int rc, const char* zErrMsg, const char* operation);
+    static int auth_callback(void* NotUsed, int argc, char** argv, char** azColName);
+    int auth(const std::string& username, const std::string& password);
 
 public:
     /**
@@ -134,47 +137,48 @@ public:
         settingsPath = "settings.txt";
 
         log.open("log.txt");
-        if(!log)
+        if (!log)
             throw std::runtime_error("Failed to open log file");
 
         settings.open(settingsPath, std::ios::in);
-        if(!settings.is_open()) {
+        if (!settings.is_open()) {
             std::ofstream create_settings(settingsPath);
             create_settings.close();
         }
 
         std::string line;
         std::getline(settings, line);
-        if(line.empty()) {
+        if (line.empty()) {
             settings.close();
             settings.open(settingsPath, std::ios::out);
-            if(!settings.is_open())
+            if (!settings.is_open())
                 throw std::runtime_error("Failed to open settings file");
             settings << "startup = false";
         }
-        else if(line == "startup = true")
+        else if (line == "startup = true")
             inStartup = true;
-        else if(line == "startup = false")
+        else if (line == "startup = false")
             inStartup = false;
 
         settings.close();
 
         int rc = sqlite3_open(db_name.c_str(), &DB);
 
-        if(rc) {
+        if (rc) {
             std::string message = std::format("Can't open database: {}", sqlite3_errmsg(DB));
             throw std::runtime_error(message);
         }
 
         try {
-            if(dbIsEmpty())
+            if (dbIsEmpty())
                 initDB();
-        } catch (const std::runtime_error &e) {
+        }
+        catch (const std::runtime_error& e) {
             throw e;
         }
 
         // Add root user
-        if(addUser("root", "root") == -1)
+        if (addUser("root", "root") == -1)
             throw std::runtime_error("unable to insert root user into database!");
 
         ZeroMemory(&hints, sizeof(hints));
@@ -185,9 +189,9 @@ public:
 
         this->port = spec_port;
 
-        if(!setupPort())
+        if (!setupPort())
             throw std::runtime_error("Failed to init port");
-        if(!initServer())
+        if (!initServer())
             throw std::runtime_error("Failed to start the server");
 
         memset(recvbuf, 0, DEFAULT_BUFLEN);
@@ -209,10 +213,10 @@ public:
         log.close();
 
         settings.open(settingsPath, std::ios::out);
-        if(!settings.is_open())
+        if (!settings.is_open())
             throw std::runtime_error("Failed to open settings file");
 
-        if(inStartup)
+        if (inStartup)
             settings << "startup = true";
         else
             settings << "startup = false";
@@ -221,13 +225,13 @@ public:
         sqlite3_close(DB);
     }
 
-    int run();
-    int addUser(const std::string &name, const std::string &password);
-    int remUser(const std::string &name);
+    void run();
+    int addUser(const std::string& name, const std::string& password);
+    int remUser(const std::string& name);
     int addStartup();
-    int setCwd(const std::string &path);
+    int setCwd(const std::string& path);
 
-    int handleAuth(char *command);
+    int handleAuth(char* command);
 };
 
 #endif //DATATRANSMISSION_SERVER_H

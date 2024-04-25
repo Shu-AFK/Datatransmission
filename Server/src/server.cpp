@@ -1,6 +1,6 @@
 #include "server.h"
 #include <lz4.h>
-
+#include <thread>
 /**
  * @brief Handles the command received from the client.
  *
@@ -18,20 +18,22 @@
  *         - 1: An error occurred while executing the command.
  *         - 2: The exit command was received.
  */
+bool STOP = false;
+
 int Server::handleCommand(char* command) {
     try {
         if (strncmp(command, "pwd", 3) == 0) {
-        if(handlePwdCommand() == -1) {
-            handleError("pwd");
+            if (handlePwdCommand() == -1) {
+                handleError("pwd");
+            }
+            return 0;
         }
-        return 0;
-        }
-        else if(strncmp(command, "copy_from ", 10) == 0) {
+        else if (strncmp(command, "copy_from ", 10) == 0) {
             int res = handleCopyFromCommand(command);
-            if(res == -1) {
+            if (res == -1) {
                 handleError("copy_from");
             }
-            else if(res == -2) { // Time out return
+            else if (res == -2) { // Time out return
                 handleTimeout();
             }
             return 0;
@@ -41,42 +43,42 @@ int Server::handleCommand(char* command) {
             return 2;
         }
         else if (strncmp(command, "cd ", 3) == 0) {
-            if(handleChangeDirectoryCommand(command + 3) == -1){
+            if (handleChangeDirectoryCommand(command + 3) == -1) {
                 handleError("cd");
             }
             return 0;
         }
         else if (strncmp(command, "ls", 2) == 0) {
-            if(handleLsCommand(command) == -1){
+            if (handleLsCommand(command) == -1) {
                 handleError("ls");
             }
             return 0;
         }
         else if (strncmp(command, "mkdir ", 6) == 0) {
-            if(handleMakeDirectoryCommand(command) == -1){
+            if (handleMakeDirectoryCommand(command) == -1) {
                 handleError("mkdir");
             }
             return 0;
         }
         else if (strncmp(command, "touch ", 6) == 0) {
-            if(handleTouchFileCommand(command) == -1){
+            if (handleTouchFileCommand(command) == -1) {
                 handleError("touch");
             }
             return 0;
         }
         else if (strncmp(command, "rm ", 3) == 0) {
-            if(handleRemoveFileCommand(command) == -1){
+            if (handleRemoveFileCommand(command) == -1) {
                 handleError("rm");
             }
             return 0;
         }
         else if (strncmp(command, "rmdir ", 6) == 0) {
-            if(handleRemoveDirectoryCommand(command) == -1){
+            if (handleRemoveDirectoryCommand(command) == -1) {
                 handleError("rmdir");
             }
             return 0;
         }
-        else if(strncmp(command, "run ", 4) == 0) {
+        else if (strncmp(command, "run ", 4) == 0) {
             if (handleRunCommand(command) == -1) {
                 handleError("run");
             }
@@ -84,87 +86,87 @@ int Server::handleCommand(char* command) {
         }
         else if (strncmp(command, "copy_to ", 8) == 0) {
             shiftStrLeft(command, 8);
-            if(handleCopyCommand(command) == -1) {
+            if (handleCopyCommand(command) == -1) {
                 handleError("copy_pc");
             }
             return 0;
         }
         else if (strncmp(command, "cat ", 4) == 0) {
-            if(handleCatCommand(command) == -1) {
+            if (handleCatCommand(command) == -1) {
                 handleError("cat");
             }
             return 0;
         }
         else if (strncmp(command, "echo ", 5) == 0) {
-            if(handleEchoCommand(command) == -1) {
+            if (handleEchoCommand(command) == -1) {
                 handleError("echo");
             }
             return 0;
         }
-        else if(strcmp(command, "move_startup") == 0) {
+        else if (strcmp(command, "move_startup") == 0) {
             int res = move_start();
-            if(res == -1) {
+            if (res == -1) {
                 handleError("move_startup");
             }
-            else if(res == -2) {
+            else if (res == -2) {
                 handleStartupError(1);
             }
             return 0;
         }
-        else if(strcmp(command, "remove_startup") == 0) {
+        else if (strcmp(command, "remove_startup") == 0) {
             int res = remove_start();
-            if(res == -1) {
+            if (res == -1) {
                 handleError("remove_startup");
             }
-            else if(res == -2) {
+            else if (res == -2) {
                 handleStartupError(2);
             }
             return 0;
         }
-        else if(strncmp(command, "mv ", 3) == 0) {
+        else if (strncmp(command, "mv ", 3) == 0) {
             std::string first_arg;
             std::string second_arg;
             int space_counter = 0;
 
-            for(int i = 0, len = (int) strlen(command); i < len; i++) {
-                if(command[i] == ' ') {
+            for (int i = 0, len = (int)strlen(command); i < len; i++) {
+                if (command[i] == ' ') {
                     space_counter++;
                     continue;
                 }
 
-                if(space_counter == 1)
+                if (space_counter == 1)
                     first_arg += command[i];
-                if(space_counter == 2)
+                if (space_counter == 2)
                     second_arg += command[i];
             }
 
-            if(space_counter != 2) {
+            if (space_counter != 2) {
                 handleError("mv");
             }
-            if(handleMoveCommand(command) == -1) {
+            if (handleMoveCommand(command) == -1) {
                 handleError("mv");
             }
             return 0;
         }
-        else if(strncmp(command, "cp ", 3) == 0) {
-            if(handleCpCommand(command) == -1) {
+        else if (strncmp(command, "cp ", 3) == 0) {
+            if (handleCpCommand(command) == -1) {
                 handleError("cp");
             }
             return 0;
         }
-        else if(strncmp(command, "find ", 5) == 0) {
-            if(handleFindCommand(command) == -1) {
+        else if (strncmp(command, "find ", 5) == 0) {
+            if (handleFindCommand(command) == -1) {
                 handleError("find");
             }
             return 0;
         }
-        else if(strncmp(command, "grep ", 5) == 0) {
+        else if (strncmp(command, "grep ", 5) == 0) {
             if (handleGrepCommand(command) == -1) {
                 handleError("grep");
             }
             return 0;
         }
-        else if(strcmp(command, "check_startup") == 0) {
+        else if (strcmp(command, "check_startup") == 0) {
             if (handleCheckInStartup() == -1) {
                 handleError("check_startup");
             }
@@ -172,59 +174,60 @@ int Server::handleCommand(char* command) {
         }
         // Check for authentication
         else if (strncmp(command, "auth: ", 6) == 0) {
-            if(handleAuth(command) == -1) {
+            if (handleAuth(command) == -1) {
                 handleError("Auth");
             }
             return 0;
         }
-        else if(strncmp(command, "add_user ", 9) == 0) {
+        else if (strncmp(command, "add_user ", 9) == 0) {
             shiftStrLeft(command, 9);
             std::string name, password;
             int space_counter = 0;
 
-            for(int i = 0; i < strlen(command); i++) {
-                if(command[i] == ' ') space_counter++;
-                if(space_counter == 0)
+            for (int i = 0; i < strlen(command); i++) {
+                if (command[i] == ' ') space_counter++;
+                if (space_counter == 0)
                     name += command[i];
                 else
                     password += command[i];
             }
 
-            if(space_counter != 1)
+            if (space_counter != 1)
                 handleWrongUsage("add_user");
 
             int ret = addUser(name, password);
-            if(ret == -1)
+            if (ret == -1)
                 handleError("add_user");
 
-            else if(ret == -2) {
-                if(handleSend(std::format("{} already in database", name)) == -1)
+            else if (ret == -2) {
+                if (handleSend(std::format("{} already in database", name), LastSock) == -1)
                     throw std::runtime_error("failed to send message!");
             }
 
             return 0;
         }
-        else if(strncmp(command, "remove_user ", 12) == 0) {
+        else if (strncmp(command, "remove_user ", 12) == 0) {
             shiftStrLeft(command, 12);
-            if(remUser(command) == -1)
+            if (remUser(command) == -1)
                 handleError("remove_user");
 
             return 0;
         }
-        else if(strncmp(command, "cut ", 4) == 0) {
+        else if (strncmp(command, "cut ", 4) == 0) {
             shiftStrLeft(command, 4);
-            if(handleCutCommand(command) == -1) {
+            if (handleCutCommand(command) == -1) {
                 handleError("cut");
             }
             return 0;
         }
         else {
-            if(sendCmdDoesntExist()) {
+            if (sendCmdDoesntExist()) {
                 handleError("send");
             }
             return 0;
         }
-    } catch (const std::runtime_error &e) {
+    }
+    catch (const std::runtime_error& e) {
         throw e;
     }
 }
@@ -241,15 +244,15 @@ int Server::handleCommand(char* command) {
  *
  * @return true if the server port is successfully set up, false otherwise.
  */
-bool Server::setupPort(){
+bool Server::setupPort() {
     std::filesystem::path cwd = std::filesystem::current_path();
 
     // runs helper scripts
-    if(run_init(port) != 0) {
+    if (run_init(port) != 0) {
         log << "Failed to run scripts" << std::endl;
         return false;
     }
-    if(create_start_script(cwd.string(), port) != 0) {
+    if (create_start_script(cwd.string(), port) != 0) {
         log << "Failed to create start script" << std::endl;
         return false;
     }
@@ -280,8 +283,8 @@ bool Server::setupPort(){
  * @return bool - true if the server is successfully initialized, false otherwise.
  */
 bool Server::initServer() {
-    iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
-    if(iResult != 0) {
+    iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    if (iResult != 0) {
         std::cerr << "WSAStartup failed with error: " << iResult << "\n";
         log << "WSAStartup failed with error: " << iResult << std::endl;
         return false;
@@ -295,7 +298,7 @@ bool Server::initServer() {
 
     // Resolve the server address and port
     iResult = getaddrinfo(NULL, port.c_str(), &hints, &result);
-    if(iResult != 0) {
+    if (iResult != 0) {
         std::cerr << "getaddrinfo failed with error: " << iResult << "\n";
         log << "getaddrinfo failed with error: " << iResult << std::endl;
         return false;
@@ -303,7 +306,7 @@ bool Server::initServer() {
 
     // Create a SOCKET for the server to listen for client connections
     ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-    if(ListenSocket == INVALID_SOCKET) {
+    if (ListenSocket == INVALID_SOCKET) {
         std::cerr << "socket failed with error: " << WSAGetLastError() << "\n";
         log << "socket failed with error: " << WSAGetLastError() << std::endl;
         return false;
@@ -311,7 +314,7 @@ bool Server::initServer() {
 
     // Set up the TCP listening socket
     iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
-    if(iResult == SOCKET_ERROR) {
+    if (iResult == SOCKET_ERROR) {
         std::cerr << "bind failed with error: " << WSAGetLastError() << "\n";
         log << "bind failed with error: " << WSAGetLastError() << std::endl;
         closesocket(ListenSocket);
@@ -321,23 +324,13 @@ bool Server::initServer() {
     freeaddrinfo(result);
 
     iResult = listen(ListenSocket, SOMAXCONN);
-    if(iResult == SOCKET_ERROR) {
+    if (iResult == SOCKET_ERROR) {
         std::cerr << "listen failed with error: " << WSAGetLastError() << "\n";
         log << "listen failed with error: " << WSAGetLastError() << std::endl;
         closesocket(ListenSocket);
         return false;
     }
 
-    // Accept a client socket
-    ClientSocket = accept(ListenSocket, NULL, NULL);
-    if(ClientSocket == INVALID_SOCKET) {
-        std::cerr << "accept failed with error: " << WSAGetLastError() << "\n";
-        log << "accept failed with error: " << WSAGetLastError() << std::endl;
-        closesocket(ListenSocket);
-        return false;
-    }
-
-    closesocket(ListenSocket);
     return true;
 }
 
@@ -354,7 +347,7 @@ bool Server::initServer() {
 int Server::handlePwdCommand() {
     std::string cwd = std::filesystem::current_path().string();
 
-    if(handleSend(cwd) == -1)
+    if (handleSend(cwd, LastSock) == -1)
         return -1;
 
     return 0;
@@ -384,20 +377,20 @@ void Server::handleExitCommand() {
  * @param path The path of the directory to change to.
  * @return 0 if the directory was successfully changed, -1 otherwise.
  */
-int Server::handleChangeDirectoryCommand(const char *path) {
+int Server::handleChangeDirectoryCommand(const char* path) {
     try {
         std::filesystem::current_path(path);
         std::string cwd = std::filesystem::current_path().string();
 
         char sendBuf[DEFAULT_BUFLEN];
-        int n = snprintf(sendBuf, DEFAULT_BUFLEN, "Changed working directory to %s\f", cwd.c_str());
+        int n = snprintf(sendBuf, DEFAULT_BUFLEN, "Changed working directory to %s", cwd.c_str());
 
         if (n >= DEFAULT_BUFLEN) {
             fprintf(stderr, "sendBuf is too small for the message\n");
             return -1;
         }
 
-        if(handleSend(sendBuf) == -1)
+        if (handleSend(sendBuf, LastSock) == -1)
             return -1;
 
         return 0;
@@ -406,7 +399,7 @@ int Server::handleChangeDirectoryCommand(const char *path) {
         char sendBuf[DEFAULT_BUFLEN];
         snprintf(sendBuf, DEFAULT_BUFLEN, "Error changing directory: %s\n", e.what());
 
-        if(handleSend(sendBuf) == -1)
+        if (handleSend(sendBuf, LastSock) == -1)
             return -1;
 
         return 0;
@@ -432,21 +425,22 @@ int Server::handleChangeDirectoryCommand(const char *path) {
  *       The function relies on the shiftStrLeft function to remove the "ls " prefix from the command.
  *       The function uses the std::filesystem library to perform directory operations.
  */
-int Server::handleLsCommand(char *command) {
+int Server::handleLsCommand(char* command) {
     std::string prevDirectory;
     std::string cwd;
     bool thisDirectory = false;
 
-    if(strcmp(command, "ls") == 0)
+    if (strcmp(command, "ls") == 0)
         cwd = std::filesystem::current_path().string();
     else {
-        try{
+        try {
             shiftStrLeft(command, 3);
             prevDirectory = std::filesystem::current_path().string();
             std::filesystem::current_path(command);
             cwd = std::filesystem::current_path().string();
             thisDirectory = true;
-        } catch(const std::exception& e) {
+        }
+        catch (const std::exception& e) {
             std::cerr << "Error in handleLS not current directory, error code: " << e.what() << std::endl;
             return -1;
         }
@@ -455,29 +449,25 @@ int Server::handleLsCommand(char *command) {
         std::string directoryContents = "Directory listing for " + cwd + "\n";
 
         // directory_iterator is used to traverse all the entries of directory
-        for (const auto & entry : std::filesystem::directory_iterator(cwd)) {
+        for (const auto& entry : std::filesystem::directory_iterator(cwd)) {
             directoryContents += entry.path().filename().string() + "\n";
         }
 
-        directoryContents += '\f';
-        int iSendResult = send(ClientSocket, directoryContents.c_str(), (int) directoryContents.length(), 0);
-
-        if (iSendResult == SOCKET_ERROR) {
-            fprintf(stderr, "send failed with error: %d\n", WSAGetLastError());
+        if (handleSend(directoryContents, LastSock) == -1)
             return -1;
-        }
 
-        if(thisDirectory)
+        if (thisDirectory)
             std::filesystem::current_path(prevDirectory);
 
         log << "SUCCESS!" << std::endl;
         return 0;
 
-    } catch (const std::exception& e) {
+    }
+    catch (const std::exception& e) {
         char sendBuf[DEFAULT_BUFLEN];
-        snprintf(sendBuf, DEFAULT_BUFLEN, "Error executing ls: %s\f", e.what());
+        snprintf(sendBuf, DEFAULT_BUFLEN, "Error executing ls: %s", e.what());
 
-        if(handleSend(sendBuf) == -1)
+        if (handleSend(sendBuf, LastSock) == -1)
             return -1;
 
         return 0;
@@ -495,7 +485,7 @@ int Server::handleLsCommand(char *command) {
  */
 int Server::sendCmdDoesntExist() {
     std::string sendBuf = "The command doesn't exist";
-    if(handleSend(sendBuf) == -1)
+    if (handleSend(sendBuf, LastSock) == -1)
         return -1;
 
     return 0;
@@ -518,14 +508,14 @@ int Server::sendCmdDoesntExist() {
  *       Otherwise, it sends a success message to the client using the ClientSocket
  *       and logs the success message to the log file.
  */
-int Server::handleMakeDirectoryCommand(char *path) {
+int Server::handleMakeDirectoryCommand(char* path) {
     shiftStrLeft(path, 6);
 
     // Creates a directory if it doesn't exist already
-    if(CreateDirectory(path, NULL) || ERROR_ALREADY_EXISTS == GetLastError())
+    if (CreateDirectory(LPCWSTR(path), NULL) || ERROR_ALREADY_EXISTS == GetLastError())
     {
-        std::string sendSuc = std::format("Directory {} was successfully created!\f", path);
-        if(handleSend(sendSuc) == -1)
+        std::string sendSuc = std::format("Directory {} was successfully created!", path);
+        if (handleSend(sendSuc, LastSock) == -1)
             return -1;
 
         return 0;
@@ -547,19 +537,19 @@ int Server::handleMakeDirectoryCommand(char *path) {
  * @returns 0 if the file is successfully created and the success message is sent to the client,
  *          -1 if there is an error while creating the file or sending the success message.
  */
-int Server::handleTouchFileCommand(char *fileName) {
+int Server::handleTouchFileCommand(char* fileName) {
     shiftStrLeft(fileName, 6);
 
     std::ofstream file(fileName);
-    if(!file)
+    if (!file)
     {
         std::cerr << "Error in opening " << fileName << std::endl;
         return -1;
     }
 
-    std::string sendSuc = std::format("{} was successfully created!\f", fileName);
+    std::string sendSuc = std::format("{} was successfully created!", fileName);
 
-    if(handleSend(sendSuc) == -1) {
+    if (handleSend(sendSuc, LastSock) == -1) {
         file.close();
         return -1;
     }
@@ -584,18 +574,19 @@ int Server::handleTouchFileCommand(char *fileName) {
  *
  * @return 0 if the removal is successful, -1 otherwise.
  */
-int Server::handleRemoveDirectoryCommand(char *path) {
+int Server::handleRemoveDirectoryCommand(char* path) {
     shiftStrLeft(path, 6);
 
     // Removes folder + all files inside of it recursively
     try {
         std::filesystem::remove_all(path);
-        std::string sendSuc = std::format("Directory {} was successfully removed!\f", path);
+        std::string sendSuc = std::format("Directory {} was successfully removed!", path);
 
-        if(handleSend(sendSuc) == -1)
+        if (handleSend(sendSuc, LastSock) == -1)
             return -1;
 
-    } catch (const std::error_code& e) {
+    }
+    catch (const std::error_code& e) {
         fprintf(stderr, "Error removing directory: %s\n", e.message().c_str());
         return -1;
     }
@@ -616,21 +607,23 @@ int Server::handleRemoveDirectoryCommand(char *path) {
  *
  * @returns 0 if the file is successfully removed, -1 if there is an error.
  */
-int Server::handleRemoveFileCommand(char *fileName) {
+int Server::handleRemoveFileCommand(char* fileName) {
     shiftStrLeft(fileName, 3);
 
     // Removes specified file
     try {
-        if(std::filesystem::remove(fileName)) {
-            std::string sendSuc = std::format("{} was successfully removed!\f", fileName);
+        if (std::filesystem::remove(fileName)) {
+            std::string sendSuc = std::format("{} was successfully removed!", fileName);
 
-            if(handleSend(sendSuc) == -1)
+            if (handleSend(sendSuc, LastSock) == -1)
                 return -1;
-        } else {
+        }
+        else {
             return -1;
         }
 
-    } catch (const std::filesystem::filesystem_error& e) {
+    }
+    catch (const std::filesystem::filesystem_error& e) {
         fprintf(stderr, "Error removing file: %s\n", e.what());
         return -1;
     }
@@ -648,24 +641,27 @@ int Server::handleRemoveFileCommand(char *fileName) {
  * @param fileName The name of the file to copy.
  * @return 0 on success, -1 on failure.
  */
-int Server::handleCopyCommand(char *fileName) {
+int Server::handleCopyCommand(char* fileName) {
     std::ifstream input(fileName, std::ios::in | std::ios::binary);
-    if(!input)
+    if (!input)
         return -1;
 
     std::string file_contents;
+
     char c;
-    while(input.get(c))
+    while (input.get(c))
+    {
         file_contents += c;
+    }
 
     // Checks if the file is bigger than 1MB, if yes it's getting compressed before getting sent
-    std::filesystem::path file{fileName};
+    std::filesystem::path file{ fileName };
     bool comp = false;
     size_t originalSize = file_contents.size();
 
-    if(std::filesystem::file_size(file) > 1000000) {
+    if (std::filesystem::file_size(file) > 1000000) {
         int maxCompressedSize = LZ4_compressBound(static_cast<int>(originalSize));
-        char *compressed = new char[maxCompressedSize];
+        char* compressed = new char[maxCompressedSize];
         int compressedSize = LZ4_compress_default(file_contents.c_str(), compressed, static_cast<int>(file_contents.size()), maxCompressedSize);
         if (compressedSize < 0) {
             // handle compression error
@@ -688,10 +684,10 @@ int Server::handleCopyCommand(char *fileName) {
         free(compressed);
     }
 
-    if(!comp)
+    if (!comp)
         file_contents.insert(0, "\v\v");
 
-    if(handleSend(file_contents) == -1) {
+    if (handleSend(file_contents, LastSock) == -1) {
         input.close();
         return -1;
     }
@@ -713,19 +709,19 @@ int Server::handleCopyCommand(char *fileName) {
  *       If an error occurs during the send operation, -1 will be returned.
  *       If the file does not exist, 1 will be returned.
  */
-int Server::handleCatCommand(char *command) {
+int Server::handleCatCommand(char* command) {
     shiftStrLeft(command, 4);
 
     std::ifstream input(command);
-    if(!input)
+    if (!input)
         return 1;
 
     std::string file_contents;
     char c;
-    while(input.get(c))
+    while (input.get(c))
         file_contents += c;
 
-    if(handleSend(file_contents) == -1)
+    if (handleSend(file_contents, LastSock) == -1)
         return -1;
 
     return 0;
@@ -747,10 +743,10 @@ int Server::handleCatCommand(char *command) {
  *       If the string is empty or num is greater than the length of the string, the
  *       function will return 1 to indicate an error.
  */
-int Server::shiftStrLeft(char *str, int num) {
+int Server::shiftStrLeft(char* str, int num) {
     size_t len = strlen(str);
 
-    if(len > 0 && num < len) {
+    if (len > 0 && num < len) {
         memmove(str, str + num, len - num + 1);
         return 0;
     }
@@ -768,49 +764,114 @@ int Server::shiftStrLeft(char *str, int num) {
  *
  * @param command The command that caused the error.
  */
-void Server::handleError(const char *command) {
+void Server::handleError(const char* command) {
     std::string message = std::format("Error in performing {} with error code: {}", command, WSAGetLastError());
     std::cerr << message << std::endl;
 
-    if(handleSend(message) == -1)
+    if (handleSend(message, LastSock) == -1)
         throw std::runtime_error("unable to send message!");
 
     throw std::runtime_error(message);
 }
 
 /**
- * @brief Runs the server and continuously receives and handles commands from the client
+ * @brief Receives the command "exit" from std::cin to stop server
+ *
+ * @details
+ * Runs in its own thread and closes all connected sockets
+ */
+
+void stop_serv(fd_set* master) {
+    std::string str;
+    std::cin >> str;
+    if (str[0] == 'e' && str[1] == 'x' && str[2] == 'i' && str[3] == 't')
+    {
+        STOP = true;
+        std::cout << "Closing server" << std::endl;
+        for (int i = 0; i < master->fd_count; ++i) {
+            closesocket(master->fd_array[i]);
+        }
+        WSACleanup();
+    }
+}
+
+/**
+ * @brief Runs the server and continuously receives and handles commands from the client or receives new clients.
  *
  * @details
  * The run() function is responsible for running the server and continuously receiving and handling commands from the client.
- * It uses a do-while loop to keep receiving commands until it receives a return value of 1 or 2 from the handleCommand() function.
- *
- * @return An integer representing the exit status of the server:
- *         - 1: If there was an error in handling the command
- *         - 2: If the "exit" command was received from the client
+ * It uses a infinity while loop to keep receiving commands until we manually stop it with command "exit". Also here we make a new thread only for receiving 
+ * the command "exit" and stop server.
  */
-int Server::run() {
+
+void Server::run() {
     int res;
-    do {
-        memset(recvbuf, 0, sizeof(recvbuf));
-        iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
+    fd_set master, read_fds;
+    FD_ZERO(&master);
+    FD_ZERO(&read_fds);
+    SOCKET newfd;
 
-        // Strips the \f
-        if(recvbuf != nullptr) {
-            const unsigned int length = strlen(recvbuf);
-            if((length > 0) && (recvbuf[length - 1] == '\f')) recvbuf[length - 1] = '\0';
+    FD_SET(ListenSocket, &master);
+
+    std::thread(stop_serv, &master).detach();
+
+    while (true)
+    {
+        read_fds = master;
+        if (select(0, &read_fds, nullptr, nullptr, nullptr) == SOCKET_ERROR) {
+            if (STOP) break;
+            std::cout << "select error: " << WSAGetLastError() << std::endl;
+            break;
         }
+        else {
+            if (STOP) break;
+            for (int i = 0; i < read_fds.fd_count; ++i) {
+                if (FD_ISSET(read_fds.fd_array[i], &read_fds)) { // got smth to read from one of socket
+                    if (read_fds.fd_array[i] == ListenSocket) { // on listenSock, so trying to accept new client
+                        newfd = accept(ListenSocket, NULL, NULL);
+                        if (newfd == INVALID_SOCKET)
+                            std::cout << "Accepted invalid socket" << std::endl;
+                        else {
+                            FD_SET(newfd, &master);
+                            LastSock = newfd;
+                        }
+                    }
+                    else { // on client, so receiving data from client
+                        LastSock = read_fds.fd_array[i];
+                        memset(recvbuf, 0, sizeof(recvbuf));
+                        iResult = recv(read_fds.fd_array[i], recvbuf, recvbuflen, 0);
+                        if (iResult > 0) {
 
-        log << recvbuf << std::endl;
+                            // Strips the \f
+                            if (recvbuf != nullptr) {
+                                const unsigned int length = strlen(recvbuf);
+                                if ((length > 0) && (recvbuf[length - 1] == '\f')) recvbuf[length - 1] = '\0';
+                            }
 
-        try {
-            res = handleCommand(recvbuf);
-            if(res == 2)
-                return 2;
-        } catch (const std::runtime_error &e) {
-            log << e.what() << std::endl;
+                            log << recvbuf << std::endl;
+
+                            try {
+                                res = handleCommand(recvbuf);
+                            }
+                            catch (const std::runtime_error& e) {
+                                log << e.what() << std::endl;
+                            }
+                        }
+                        else if (iResult == 0)
+                        {
+                            std::cout << "User " << userMap[read_fds.fd_array[i]] << " has disconnected" << std::endl;
+                            closesocket(read_fds.fd_array[i]);
+                            FD_CLR(read_fds.fd_array[i], &master);
+                        }
+                        else {
+                            printf("recv failed with error: %d\n", WSAGetLastError());
+                            closesocket(read_fds.fd_array[i]);
+                        }
+                    }
+                }
+            }
         }
-    } while(true);
+    }
 }
 
 /**
@@ -823,14 +884,14 @@ int Server::run() {
  * @param command The command received from the client.
  * @return Returns 0 on success, -1 if the send operation fails.
  */
-int Server::handleEchoCommand(char *command) {
+int Server::handleEchoCommand(char* command) {
     shiftStrLeft(command, 5);
     std::cout << command << std::endl;
     log << command << std::endl;
 
-    std::string sendMes = std::format("{} has been echoed\f", command);
+    std::string sendMes = std::format("{} has been echoed", command);
 
-    if(handleSend(sendMes) == -1)
+    if (handleSend(sendMes, LastSock) == -1)
         return -1;
 
     return 0;
@@ -862,14 +923,14 @@ int Server::handleEchoCommand(char *command) {
  * @exception std::runtime_error If either the copy or remove operations fail, a
  * std::runtime_error is thrown with a message explaining the error.
  */
-int Server::handleMoveCommand(char *command) {
+int Server::handleMoveCommand(char* command) {
     shiftStrLeft(command, 3);
     std::string first_arg;
     std::string second_arg;
     bool second = false;
 
-    for(int i = 0, length = (int) strlen(command); i < length; i++) {
-        if(command[i] == ' ') {
+    for (int i = 0, length = (int)strlen(command); i < length; i++) {
+        if (command[i] == ' ') {
             second = true;
             continue;
         }
@@ -882,17 +943,19 @@ int Server::handleMoveCommand(char *command) {
 
     try {
         std::filesystem::copy(first_arg, second_arg);
-    } catch (std::filesystem::filesystem_error &e) {
+    }
+    catch (std::filesystem::filesystem_error& e) {
         throw std::runtime_error(e.what());
     }
     try {
         std::filesystem::remove(first_arg);
-    } catch (std::filesystem::filesystem_error &e) {
+    }
+    catch (std::filesystem::filesystem_error& e) {
         throw std::runtime_error(e.what());
     }
 
     std::string message = std::format("{} has successfully been moved to {}", first_arg, second_arg);
-    if(handleSend(message) == -1)
+    if (handleSend(message, LastSock) == -1)
         return -1;
 
     return 0;
@@ -917,14 +980,14 @@ int Server::handleMoveCommand(char *command) {
  *
  * @throws std::runtime_error if an error occurs during the file copying process.
  */
-int Server::handleCpCommand(char *command) {
+int Server::handleCpCommand(char* command) {
     shiftStrLeft(command, 3);
     std::string first_arg;
     std::string second_arg;
     bool second = false;
 
-    for(int i = 0, length = (int) strlen(command); i < length; i++) {
-        if(command[i] == ' ') {
+    for (int i = 0, length = (int)strlen(command); i < length; i++) {
+        if (command[i] == ' ') {
             second = true;
             continue;
         }
@@ -937,13 +1000,14 @@ int Server::handleCpCommand(char *command) {
 
     try {
         std::filesystem::copy(first_arg, second_arg);
-    } catch (std::filesystem::filesystem_error &e) {
+    }
+    catch (std::filesystem::filesystem_error& e) {
         throw std::runtime_error(e.what());
     }
 
     std::string message = std::format("{} has successfully been moved to {}", first_arg, second_arg);
 
-    if(handleSend(message) == -1)
+    if (handleSend(message, LastSock) == -1)
         return -1;
 
     return 0;
@@ -959,24 +1023,24 @@ int Server::handleCpCommand(char *command) {
  * @param command The command string received from the client.
  * @return 0 if the operation is successful, -1 if an error occurs during sending the response.
  */
-int Server::handleFindCommand(char *command) {
+int Server::handleFindCommand(char* command) {
     shiftStrLeft(command, 5);
     std::string message;
     bool found = false;
 
-    for (const auto &entry : std::filesystem::recursive_directory_iterator
+    for (const auto& entry : std::filesystem::recursive_directory_iterator
     (std::filesystem::current_path())) {
-        if(entry.path().filename() == command) {
+        if (entry.path().filename() == command) {
             message = std::format("{} is in {}", command, entry.path().string());
             found = true;
         }
     }
 
-    if(!found) {
+    if (!found) {
         message = std::format("{} has not been found in {}", command, std::filesystem::current_path().string());
     }
 
-    if(handleSend(message) == -1)
+    if (handleSend(message, LastSock) == -1)
         return -1;
 
     return 0;
@@ -994,13 +1058,13 @@ int Server::handleFindCommand(char *command) {
  *
  * @returns 0 on success, -1 on failure.
  */
-int Server::handleGrepCommand(char *command) {
+int Server::handleGrepCommand(char* command) {
     std::string fileName;
     std::string pattern;
     bool second = false;
 
     shiftStrLeft(command, 5);
-    for(int i = 0, length = (int) strlen(command); i < length; i++) {
+    for (int i = 0, length = (int)strlen(command); i < length; i++) {
         if (command[i] == ' ') {
             second = true;
             continue;
@@ -1013,7 +1077,7 @@ int Server::handleGrepCommand(char *command) {
     }
 
     std::ifstream file(fileName);
-    if(!file) {
+    if (!file) {
         std::cerr << "Error in opening " << fileName << std::endl;
         return -1;
     }
@@ -1033,7 +1097,7 @@ int Server::handleGrepCommand(char *command) {
         }
     }
 
-    if(handleSend(sendMessage) == -1)
+    if (handleSend(sendMessage, LastSock) == -1)
         return -1;
 
     return 0;
@@ -1051,7 +1115,7 @@ int Server::handleGrepCommand(char *command) {
  * @param command The command received from the client.
  * @return 0 if the file has been received successfully, -1 otherwise.
  */
-int Server::handleCopyFromCommand(char *command) {
+int Server::handleCopyFromCommand(char* command) {
     // Remove the copy_from text from the command
     shiftStrLeft(command, 10);
 
@@ -1105,7 +1169,7 @@ int Server::handleCopyFromCommand(char *command) {
             }
 
             // Allocate a buffer for decompressed data
-            char *decompressedData = new char[originalSize];
+            char* decompressedData = new char[originalSize];
 
             // Decompress the data
             int decompressedSize = LZ4_decompress_safe(compressedData.c_str(), decompressedData, compressedSize, originalSize);
@@ -1149,7 +1213,7 @@ int Server::handleCopyFromCommand(char *command) {
 void Server::handleTimeout() {
     std::string sendFail = "Your request timed out!";
 
-    if(handleSend(sendFail) == -1)
+    if (handleSend(sendFail, LastSock) == -1)
         throw std::runtime_error("Couldn't send message!");
 }
 
@@ -1165,17 +1229,17 @@ void Server::handleTimeout() {
  * @return The exit status of the function. Returns 1 if the script execution fails, 0 otherwise.
  */
 int Server::move_start() {
-    if(inStartup)
+    if (inStartup)
         return -2;
 
-    if(system(R"(..\..\..\Server\src\scripts\move_startup.bat)") != 0)
+    if (system(R"(..\..\..\Server\src\scripts\move_startup.bat)") != 0)
         return -1;
 
     inStartup = true;
 
     std::string message = "Successfully added Server.exe to startup!";
 
-    if(handleSend(message) == -1)
+    if (handleSend(message, LastSock) == -1)
         return 1;
 
     return 0;
@@ -1193,14 +1257,14 @@ int Server::move_start() {
  *         -1 if there is an error sending the message and if there is an error executing the batch file
  */
 int Server::remove_start() {
-    if(!inStartup)
+    if (!inStartup)
         return -2;
 
     std::filesystem::path cwd = std::filesystem::current_path();
     std::string command = std::format(R"(..\..\..\Server\src\scripts\remove_startup.bat {})", cwd.string());
     int exit_code = std::system(command.c_str());
 
-    if(exit_code == 1) {
+    if (exit_code == 1) {
         log << "Failed to run remove_startup.bat" << std::endl;
         return -1;
     }
@@ -1209,7 +1273,7 @@ int Server::remove_start() {
 
     std::string message = "Successfully removed Server.exe from startup!";
 
-    if(handleSend(message) == -1)
+    if (handleSend(message, LastSock) == -1)
         return -1;
 
     return 0;
@@ -1228,18 +1292,18 @@ int Server::remove_start() {
  *
  * @returns 0 if the command is executed successfully, -1 otherwise.
  */
-int Server::handleRunCommand(char *command) {
+int Server::handleRunCommand(char* command) {
     shiftStrLeft(command, 4);
     // Check if file name exists
     if (!std::filesystem::exists(command))
         return -1;
 
-    if(system(command) != 0)
+    if (system(command) != 0)
         return -1;
 
     std::string message = std::format("Successfully ran {}!", command);
 
-    if(handleSend(message) == -1)
+    if (handleSend(message, LastSock) == -1)
         return -1;
 
     return 0;
@@ -1262,14 +1326,14 @@ void Server::handleStartupError(int move) {
     std::string message;
 
     // Handles already in startup
-    if(move == 1)
+    if (move == 1)
         message = "The exe is already in startup";
-    else if(move == 2)
+    else if (move == 2)
         message = "The exe is not yet in startup, nothing to remove";
     else
         return;
 
-    handleSend(message);
+    handleSend(message, LastSock);
 }
 
 /**
@@ -1284,12 +1348,12 @@ void Server::handleStartupError(int move) {
  */
 int Server::handleCheckInStartup() {
     std::string message;
-    if(inStartup)
+    if (inStartup)
         message = "The exe file is in startup";
     else
         message = "The exe file is not in startup";
 
-    if(handleSend(message) == -1)
+    if (handleSend(message, LastSock) == -1)
         return -1;
 
     return 0;
@@ -1305,14 +1369,14 @@ int Server::handleCheckInStartup() {
  * @param sen The message to be sent to the client.
  * @return 0 on success, -1 on failure to send the message.
  */
-int Server::handleSend(std::string sen) {
+int Server::handleSend(std::string sen, SOCKET sock) {
     log << sen << std::endl;
-    std::cout << sen << std::endl;
+    //std::cout << sen << std::endl;	
 
     sen += '\f';
 
-    int iSendResult = send(ClientSocket, sen.c_str(), (int) sen.length(), 0);
-    if(iSendResult == SOCKET_ERROR) {
+    int iSendResult = send(sock, sen.c_str(), (int)sen.length(), 0);
+    if (iSendResult == SOCKET_ERROR) {
         log << "Failed to send message!";
         std::cerr << "failed to send message!" << std::endl;
         return -1;
@@ -1331,7 +1395,7 @@ int Server::handleSend(std::string sen) {
  * @param password The password string for which the hash value is to be calculated.
  * @return The hash value of the password as a string.
  */
-std::string hash_pass(const std::string &password) {
+std::string hash_pass(const std::string& password) {
     std::hash<std::string> hasher;
     auto hashed = hasher(password);
     return std::to_string(hashed);
@@ -1349,16 +1413,16 @@ std::string hash_pass(const std::string &password) {
  * @param password The password of the user to authenticate.
  * @return 0 for successful authentication. -1 if an error occurred.
  */
-int Server::auth(const std::string &username, const std::string &password) {
+int Server::auth(const std::string& username, const std::string& password) {
     log << "Authenticating " << username << ".." << std::endl;
     std::string new_pass = hash_pass(password);
-    char *zErrMsg = nullptr;
+    char* zErrMsg = nullptr;
 
     std::string sql = "SELECT * FROM USERS WHERE USERNAME='" + username + "' AND PASSWORD='" + new_pass + "';";
 
     int rc = sqlite3_exec(DB, sql.c_str(), auth_callback, 0, &zErrMsg);
 
-    if(rc != SQLITE_OK){
+    if (rc != SQLITE_OK) {
         fprintf(stderr, "SQL error: %s\n", zErrMsg);
         sqlite3_free(zErrMsg);
         log << "Authentication was not successful" << std::endl;
@@ -1381,16 +1445,16 @@ int Server::auth(const std::string &username, const std::string &password) {
  * @param password The password of the new user.
  * @return 0 if the user is added successfully, -1 otherwise.
  */
-int Server::addUser(const std::string &name, const std::string &password) {
+int Server::addUser(const std::string& name, const std::string& password) {
     log << "Adding user " << name << ".." << std::endl;
     std::string new_pass = hash_pass(password);
 
-    sqlite3_stmt *stmt;
+    sqlite3_stmt* stmt;
     std::string query = "SELECT 1 FROM USERS WHERE USERNAME = ?";
-    if (sqlite3_prepare_v2(DB, query.c_str(), -1, &stmt, nullptr) == SQLITE_OK){
+    if (sqlite3_prepare_v2(DB, query.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
         sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_STATIC);
 
-        if (sqlite3_step(stmt) == SQLITE_ROW){
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
             sqlite3_finalize(stmt);
             log << "Username already exists" << std::endl;
             return -2;
@@ -1399,11 +1463,11 @@ int Server::addUser(const std::string &name, const std::string &password) {
     sqlite3_finalize(stmt);
 
     query = "INSERT INTO USERS (USERNAME, PASSWORD) VALUES (?, ?)";
-    if (sqlite3_prepare_v2(DB, query.c_str(), -1, &stmt, nullptr) == SQLITE_OK){
+    if (sqlite3_prepare_v2(DB, query.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
         sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_STATIC);
         sqlite3_bind_text(stmt, 2, new_pass.c_str(), -1, SQLITE_STATIC);
 
-        if (sqlite3_step(stmt) != SQLITE_DONE){
+        if (sqlite3_step(stmt) != SQLITE_DONE) {
             log << "Adding user was not successful" << std::endl;
             sqlite3_finalize(stmt);
             return -1;
@@ -1428,16 +1492,16 @@ int Server::addUser(const std::string &name, const std::string &password) {
  */
 int Server::initDB() {
     log << "initialising db.." << std::endl;
-    char *zErrMsg = nullptr;
+    char* zErrMsg = nullptr;
 
     std::string sql = "CREATE TABLE USERS(" \
-                      "ID INT PRIMARY KEY," \
-                      "USERNAME     TEXT    UNIQUE," \
-                      "PASSWORD     TEXT);";
+        "ID INT PRIMARY KEY," \
+        "USERNAME     TEXT    UNIQUE," \
+        "PASSWORD     TEXT);";
 
     int rc = sqlite3_exec(DB, sql.c_str(), callback, this, &zErrMsg);
 
-    if(handleSQL(rc, zErrMsg, "create") == -1) {
+    if (handleSQL(rc, zErrMsg, "create") == -1) {
         sqlite3_free(zErrMsg);
         log << "initialisation was not successful" << std::endl;
         return -1;
@@ -1461,12 +1525,12 @@ int Server::initDB() {
  */
 bool Server::dbIsEmpty() {
     log << "Checking if db is empty.." << std::endl;
-    sqlite3_stmt *stmt;
+    sqlite3_stmt* stmt;
     int rc;
 
     const std::string sql = "SELECT COUNT(*) FROM sqlite_master WHERE type='table';";
     rc = sqlite3_prepare_v2(DB, sql.c_str(), -1, &stmt, 0);
-    if(rc != SQLITE_OK) {
+    if (rc != SQLITE_OK) {
         std::string message = std::format("SQL error: {}", sqlite3_errmsg(DB));
         throw std::runtime_error(message);
     }
@@ -1499,8 +1563,8 @@ bool Server::dbIsEmpty() {
  * @param azColName The column names in the result set.
  * @return The result code returned by the `callbackImpl` member function.
  */
-int Server::callback(void *instance, int argc, char **argv, char **azColName) {
-    return static_cast<Server *>(instance)->callbackImpl(argc, argv, azColName);
+int Server::callback(void* instance, int argc, char** argv, char** azColName) {
+    return static_cast<Server*>(instance)->callbackImpl(argc, argv, azColName);
 }
 
 /**
@@ -1516,10 +1580,10 @@ int Server::callback(void *instance, int argc, char **argv, char **azColName) {
  * @param azColName An array of strings containing the names of each column in the result set.
  * @return int Always returns 0.
  */
-int Server::callbackImpl(int argc, char **argv, char **azColName) {
+int Server::callbackImpl(int argc, char** argv, char** azColName) {
     std::stringstream ss;
 
-    for(int i = 0; i < argc; i++) {
+    for (int i = 0; i < argc; i++) {
         // Append column name and value to stringstream
         ss << azColName[i] << " = ";
         ss << (argv[i] ? argv[i] : "NULL") << "\n";
@@ -1547,12 +1611,13 @@ int Server::callbackImpl(int argc, char **argv, char **azColName) {
  * @param operation The type of operation that was performed.
  * @return Returns -1 if there was an error, 0 otherwise.
  */
-int Server::handleSQL(int rc, const char *zErrMsg, const char *operation) {
-    if(rc != SQLITE_OK) {
+int Server::handleSQL(int rc, const char* zErrMsg, const char* operation) {
+    if (rc != SQLITE_OK) {
         log << "Failed to " << operation << " table: " << zErrMsg << std::endl;
         std::cerr << "Failed to " << operation << " table: " << zErrMsg << std::endl;
         return -1;
-    } else {
+    }
+    else {
         log << "Table " << operation << " successfully!" << std::endl;
         std::cout << "Table " << operation << " successfully!" << std::endl;
         return 0;
@@ -1572,7 +1637,7 @@ int Server::handleSQL(int rc, const char *zErrMsg, const char *operation) {
  *
  * @return The number of columns in the result row.
  */
-int Server::auth_callback(void *NotUsed, int argc, char **argv, char **azColName) {
+int Server::auth_callback(void* NotUsed, int argc, char** argv, char** azColName) {
     return argc;
 }
 
@@ -1586,10 +1651,10 @@ int Server::auth_callback(void *NotUsed, int argc, char **argv, char **azColName
  * @param name The name of the user to remove.
  * @return Returns 0 if the user was removed successfully, -1 otherwise.
  */
-int Server::remUser(const std::string &name) {
+int Server::remUser(const std::string& name) {
     log << "Removing user: " << name << std::endl;
 
-    sqlite3_stmt *stmt;
+    sqlite3_stmt* stmt;
     std::string query = "DELETE FROM USERS WHERE USERNAME = ?";
 
     if (sqlite3_prepare_v2(DB, query.c_str(), -1, &stmt, 0) == SQLITE_OK) {
@@ -1597,7 +1662,7 @@ int Server::remUser(const std::string &name) {
         int rc = sqlite3_step(stmt);  // will return SQLITE_DONE if successful
         sqlite3_finalize(stmt);
 
-        if(rc != SQLITE_DONE) {
+        if (rc != SQLITE_DONE) {
             log << "Removing user was not successful" << std::endl;
             return -1;
         }
@@ -1622,10 +1687,10 @@ int Server::remUser(const std::string &name) {
  *             - -2: Server is already in the startup.
  */
 int Server::addStartup() {
-    if(inStartup)
+    if (inStartup)
         return -2;
 
-    if(system(R"(..\..\..\Server\src\scripts\move_startup.bat)") != 0)
+    if (system(R"(..\..\..\Server\src\scripts\move_startup.bat)") != 0)
         return -1;
 
     inStartup = true;
@@ -1644,30 +1709,33 @@ int Server::addStartup() {
  * @param command The authentication command received from the client.
  * @return 0 on successful authentication, -1 on error or authentication failure.
  */
-int Server::handleAuth(char *command) {
+int Server::handleAuth(char* command) {
     shiftStrLeft(command, 6);
     std::string username, password;
     int space_counter = 0;
     bool second_word = false;
 
-    for(int i = 0, len = (int) strlen(command); i < len; i++) {
-        if(command[i] == ' ') {
+    for (int i = 0, len = (int)strlen(command); i < len; i++) {
+        if (command[i] == ' ') {
             space_counter++;
             second_word = true;
         }
 
-        if(second_word)
+        if (second_word)
             password += command[i];
         else
             username += command[i];
     }
 
-    if(space_counter != 1) return -1;
+    if (space_counter != 1) return -1;
 
     int res = auth(username, password);
-    if(res == -1) return -1;
+    if (res == -1) return -1;
 
-    if(handleSend("valid") != 0) return -1;
+    userMap[LastSock] = username;
+    std::cout << "Accepted new client. Username: " << username << std::endl;
+
+    if (handleSend("valid", LastSock) != 0) return -1;
 
     return 0;
 }
@@ -1684,12 +1752,13 @@ int Server::handleAuth(char *command) {
  *         - 0: The current working directory was successfully changed to the specified path.
  *         - -1: An error occurred while changing the current working directory.
  */
-int Server::setCwd(const std::string &path) {
+int Server::setCwd(const std::string& path) {
     try {
         std::filesystem::current_path(path);
         log << "Filepath successfully changed to " << path << std::endl;
         return 0;
-    } catch (const std::filesystem::filesystem_error &e) {
+    }
+    catch (const std::filesystem::filesystem_error& e) {
         return -1;
     }
 }
@@ -1708,11 +1777,11 @@ int Server::setCwd(const std::string &path) {
  * @throw std::runtime_error If an error occurs while sending the error message.
  * @throw std::runtime_error to indicate wrong usage.
  */
-void Server::handleWrongUsage(const char *command) {
+void Server::handleWrongUsage(const char* command) {
     std::string message = std::format("Wrong usage in command {}", command);
     log << message << std::endl;
 
-    if(handleSend(message) == -1)
+    if (handleSend(message, LastSock) == -1)
         throw std::runtime_error("Unable to send message.");
 
     throw std::runtime_error(message);
@@ -1724,16 +1793,17 @@ void Server::handleWrongUsage(const char *command) {
  * @param command The name of the file to cut.
  * @return 0 on success, -1 on failure.
  */
-int Server::handleCutCommand(char *command) {
-    if(handleCopyCommand(command) == -1) {
+int Server::handleCutCommand(char* command) {
+    if (handleCopyCommand(command) == -1) {
         handleError("cut");
         return -1;
     }
 
-    if(remove(command) != 0) {
-        handleSend(std::format("Failed to remove file {}", command));
+    if (remove(command) != 0) {
+        handleSend(std::format("Failed to remove file {}", command), LastSock);
         return -1;
-    } else {
+    }
+    else {
         std::string success = std::format("Successfully cut {}", command);
         std::cout << success << std::endl;
         log << success << std::endl;
