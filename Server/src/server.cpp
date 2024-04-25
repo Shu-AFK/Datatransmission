@@ -1306,9 +1306,6 @@ int Server::handleCheckInStartup() {
  * @return 0 on success, -1 on failure to send the message.
  */
 int Server::handleSend(std::string sen) {
-    log << sen << std::endl;
-    std::cout << sen << std::endl;
-
     sen += '\f';
 
     int iSendResult = send(ClientSocket, sen.c_str(), (int) sen.length(), 0);
@@ -1580,8 +1577,18 @@ int Server::handleSQL(int rc, const char *zErrMsg, const char *operation) {
  * @return The number of columns in the result row.
  */
 int Server::auth_callback(void *data, int argc, char **argv, char **azColName) {
+    for(int i = 0; i < argc; i++) {
+        // Print column name and value (can be NULL)
+        printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+    }
+    printf("\n");
+
     bool *authenticated = reinterpret_cast<bool *>(data);
-    *authenticated = true;
+
+    if(argv[0]) {
+        *authenticated = true;
+    }
+
     return 0;
 }
 
