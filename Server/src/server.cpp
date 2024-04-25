@@ -515,6 +515,7 @@ int Server::handleMakeDirectoryCommand(char* path) {
     if (CreateDirectory(LPCWSTR(path), NULL) || ERROR_ALREADY_EXISTS == GetLastError())
     {
         std::string sendSuc = std::format("Directory {} was successfully created!", path);
+
         if (handleSend(sendSuc, LastSock) == -1)
             return -1;
 
@@ -1232,7 +1233,7 @@ int Server::move_start() {
     if (inStartup)
         return -2;
 
-    if (system(R"(..\..\..\Server\src\scripts\move_startup.bat)") != 0)
+    if(system(R"(..\..\Server\src\scripts\move_startup.bat)") != 0)
         return -1;
 
     inStartup = true;
@@ -1261,7 +1262,7 @@ int Server::remove_start() {
         return -2;
 
     std::filesystem::path cwd = std::filesystem::current_path();
-    std::string command = std::format(R"(..\..\..\Server\src\scripts\remove_startup.bat {})", cwd.string());
+    std::string command = std::format(R"(..\..\Server\src\scripts\remove_startup.bat {})", cwd.string());
     int exit_code = std::system(command.c_str());
 
     if (exit_code == 1) {
@@ -1369,9 +1370,8 @@ int Server::handleCheckInStartup() {
  * @param sen The message to be sent to the client.
  * @return 0 on success, -1 on failure to send the message.
  */
-int Server::handleSend(std::string sen, SOCKET sock) {
-    log << sen << std::endl;
-    //std::cout << sen << std::endl;	
+
+int Server::handleSend(std::string sen) {
 
     sen += '\f';
 
@@ -1420,18 +1420,25 @@ int Server::auth(const std::string& username, const std::string& password) {
 
     std::string sql = "SELECT * FROM USERS WHERE USERNAME='" + username + "' AND PASSWORD='" + new_pass + "';";
 
-    int rc = sqlite3_exec(DB, sql.c_str(), auth_callback, 0, &zErrMsg);
+    bool authenticated = false;
+
+    int rc = sqlite3_exec(DB, sql.c_str(), auth_callback, (void *)&authenticated, &zErrMsg);
 
     if (rc != SQLITE_OK) {
         fprintf(stderr, "SQL error: %s\n", zErrMsg);
-        sqlite3_free(zErrMsg);
-        log << "Authentication was not successful" << std::endl;
-        return -1;
+        log << "Authentication was not successful due to SQL error" << std::endl;
+        std::cout << "Authentication was not successful due to SQL error" << std::endl;
+    } else if(!authenticated) {
+        log << "Authentication was not successful, user not found" << std::endl;
+        std::cout << "Authentication was not successful, user not found" << std::endl;
+    } else {
+        log << "Authentication was successful" << std::endl;
+        std::cout << "Authentication was successful" << std::endl;
+        return 0;
     }
 
     sqlite3_free(zErrMsg);
-    log << "Authentication was successful" << std::endl;
-    return 0;
+    return -1;
 }
 
 /**
@@ -1637,8 +1644,21 @@ int Server::handleSQL(int rc, const char* zErrMsg, const char* operation) {
  *
  * @return The number of columns in the result row.
  */
-int Server::auth_callback(void* NotUsed, int argc, char** argv, char** azColName) {
-    return argc;
+
+int Server::auth_callback(void *data, int argc, char **argv, char **azColName) {
+    for(int i = 0; i < argc; i++) {
+        // Print column name and value (can be NULL)
+        printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+    }
+    printf("\n");
+
+    bool *authenticated = reinterpret_cast<bool *>(data);
+
+    if(argv[0]) {
+        *authenticated = true;
+    }
+
+    return 0;
 }
 
 /**
@@ -1690,7 +1710,7 @@ int Server::addStartup() {
     if (inStartup)
         return -2;
 
-    if (system(R"(..\..\..\Server\src\scripts\move_startup.bat)") != 0)
+    if(system(R"(..\..\Server\src\scripts\move_startup.bat)") != 0)
         return -1;
 
     inStartup = true;

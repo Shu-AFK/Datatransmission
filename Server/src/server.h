@@ -119,9 +119,9 @@ private:
     static int callback(void* instance, int argc, char** argv, char** azColName);
     int callbackImpl(int argc, char** argv, char** azColName);
     bool dbIsEmpty();
-    int handleSQL(int rc, const char* zErrMsg, const char* operation);
-    static int auth_callback(void* NotUsed, int argc, char** argv, char** azColName);
-    int auth(const std::string& username, const std::string& password);
+    int handleSQL(int rc, const char *zErrMsg, const char *operation);
+    static int auth_callback(void *data, int argc, char **argv, char**azColName);
+    int auth(const std::string &username, const std::string &password);
 
 public:
     /**
