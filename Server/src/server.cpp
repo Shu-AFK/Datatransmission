@@ -390,7 +390,7 @@ int Server::handleChangeDirectoryCommand(const char *path) {
         std::string cwd = std::filesystem::current_path().string();
 
         char sendBuf[DEFAULT_BUFLEN];
-        int n = snprintf(sendBuf, DEFAULT_BUFLEN, "Changed working directory to %s\f", cwd.c_str());
+        int n = snprintf(sendBuf, DEFAULT_BUFLEN, "Changed working directory to %s", cwd.c_str());
 
         if (n >= DEFAULT_BUFLEN) {
             fprintf(stderr, "sendBuf is too small for the message\n");
@@ -475,7 +475,7 @@ int Server::handleLsCommand(char *command) {
 
     } catch (const std::exception& e) {
         char sendBuf[DEFAULT_BUFLEN];
-        snprintf(sendBuf, DEFAULT_BUFLEN, "Error executing ls: %s\f", e.what());
+        snprintf(sendBuf, DEFAULT_BUFLEN, "Error executing ls: %s", e.what());
 
         if(handleSend(sendBuf) == -1)
             return -1;
@@ -524,7 +524,7 @@ int Server::handleMakeDirectoryCommand(char *path) {
     // Creates a directory if it doesn't exist already
     if(CreateDirectory(path, NULL) || ERROR_ALREADY_EXISTS == GetLastError())
     {
-        std::string sendSuc = std::format("Directory {} was successfully created!\f", path);
+        std::string sendSuc = std::format("Directory {} was successfully created!", path);
         if(handleSend(sendSuc) == -1)
             return -1;
 
@@ -557,7 +557,7 @@ int Server::handleTouchFileCommand(char *fileName) {
         return -1;
     }
 
-    std::string sendSuc = std::format("{} was successfully created!\f", fileName);
+    std::string sendSuc = std::format("{} was successfully created!", fileName);
 
     if(handleSend(sendSuc) == -1) {
         file.close();
@@ -590,7 +590,7 @@ int Server::handleRemoveDirectoryCommand(char *path) {
     // Removes folder + all files inside of it recursively
     try {
         std::filesystem::remove_all(path);
-        std::string sendSuc = std::format("Directory {} was successfully removed!\f", path);
+        std::string sendSuc = std::format("Directory {} was successfully removed!", path);
 
         if(handleSend(sendSuc) == -1)
             return -1;
@@ -622,7 +622,7 @@ int Server::handleRemoveFileCommand(char *fileName) {
     // Removes specified file
     try {
         if(std::filesystem::remove(fileName)) {
-            std::string sendSuc = std::format("{} was successfully removed!\f", fileName);
+            std::string sendSuc = std::format("{} was successfully removed!", fileName);
 
             if(handleSend(sendSuc) == -1)
                 return -1;
@@ -828,7 +828,7 @@ int Server::handleEchoCommand(char *command) {
     std::cout << command << std::endl;
     log << command << std::endl;
 
-    std::string sendMes = std::format("{} has been echoed\f", command);
+    std::string sendMes = std::format("{} has been echoed", command);
 
     if(handleSend(sendMes) == -1)
         return -1;
