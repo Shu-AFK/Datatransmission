@@ -649,7 +649,7 @@ int Server::handleRemoveFileCommand(char *fileName) {
  * @return 0 on success, -1 on failure.
  */
 int Server::handleCopyCommand(char *fileName) {
-    std::ifstream input(fileName);
+    std::ifstream input(fileName, std::ios::in | std::ios::binary);
     if(!input)
         return -1;
 
