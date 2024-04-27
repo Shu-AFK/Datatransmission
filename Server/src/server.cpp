@@ -780,6 +780,8 @@ void Server::handleError(const char* command) {
  *
  * @details
  * Runs in its own thread and closes all connected sockets
+ *
+ * @param master The set of file descriptors (in this case the socket is treated as a file). This set is used by select function to check socket for readability.
  */
 
 void stop_serv(fd_set* master) {
@@ -1753,6 +1755,7 @@ int Server::handleAuth(char* command) {
     if (res == -1) return -1;
 
     userMap[LastSock] = username;
+	log << "Accepted new client. Username: " << username << std::endl;
     std::cout << "Accepted new client. Username: " << username << std::endl;
 
     if (handleSend("valid", LastSock) != 0) return -1;
