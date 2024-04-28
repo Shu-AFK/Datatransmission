@@ -1,6 +1,6 @@
 #include "server.h"
 #include <lz4.h>
-#include <thread>
+
 /**
  * @brief Handles the command received from the client.
  *
@@ -816,7 +816,15 @@ int Server::run() {
 
     FD_SET(ListenSocket, &master);
 
-    std::thread(stop_serv, &master).detach();
+    //std::thread(stop_serv, std::ref(master)).detach();
+	
+	CreateThread(
+    NULL,                   // default security attributes
+    0,                      // use default stack size  
+    (LPTHREAD_START_ROUTINE)stop_serv,       // thread function name
+    (LPVOID)&master,          // argument to thread function 
+    0,                      // use default creation flags 
+    nullptr);   // returns the thread identifier
 
     while (true)
     {
