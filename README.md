@@ -16,6 +16,16 @@ This project relies on the following libraries and tools:
 - [Vcpkg](https://github.com/microsoft/vcpkg) for managing C++ libraries on Windows, macOS, and Linux.
 - A C++ Compiler with support for C++23 standard.
 
+### Package install script
+
+To use, open a command prompt **as an administrator** and navigate to the directory containing install_packages.bat. Run the script using the following command
+
+```shell
+install_packages.bat <path_to_vcpkg_directory> [-install]
+```
+
+The -install flag is optional and indicates that the script should clone and build vcpkg if it's not already installed.
+
 ## 3. Full Unix Commands and Extensions implemented
 
 ### 3.1 Unix Commands
