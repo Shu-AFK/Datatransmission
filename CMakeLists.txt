@@ -12,6 +12,9 @@ set(CMAKE_TOOLCHAIN_FILE ${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake CACHE ST
 set(LZ4_INCLUDE_DIR "${VCPKG_ROOT}/installed/x64-windows/include")
 set(LZ4_LIBRARY "${VCPKG_ROOT}/installed/x64-windows/lib/lz4.lib")
 
+set(LIBSODIUM_INCLUDE_DIR "${VCPKG_ROOT}/installed/x64-windows/include/sodium")
+set(LIBSODIUM_LIBRARY "${VCPKG_ROOT}/installed/x64-windows/lib/libsodium.lib")
+
 # Set the default SQLite path as D:\SQLite
 if(NOT DEFINED SQLITE_PATH)
     set(SQLITE_PATH "D:\\SQLite")
