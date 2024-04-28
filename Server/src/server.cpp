@@ -1397,10 +1397,16 @@ int Server::handleSend(std::string sen) {
  * @param password The password string for which the hash value is to be calculated.
  * @return The hash value of the password as a string.
  */
-std::string hash_pass(const std::string& password) {
-    std::hash<std::string> hasher;
-    auto hashed = hasher(password);
-    return std::to_string(hashed);
+
+std::vector<unsigned char> Server::hash_pass(const std::string &password) {
+    unsigned char hashed_password[crypto_pwhash_STRBYTES];
+
+    if(crypto_pwhash_str(reinterpret_cast<char*>(hashed_password), password.c_str(), password.length(), crypto_pwhash_OPSLIMIT_INTERACTIVE, crypto_pwhash_MEMLIMIT_INTERACTIVE) != 0) {
+        throw std::runtime_error("Out of memory!");
+    }
+
+    std::vector<unsigned char> hash(hashed_password, hashed_password + crypto_pwhash_STRBYTES);
+    return hash;
 }
 
 /**
@@ -1417,30 +1423,44 @@ std::string hash_pass(const std::string& password) {
  */
 int Server::auth(const std::string& username, const std::string& password) {
     log << "Authenticating " << username << ".." << std::endl;
-    std::string new_pass = hash_pass(password);
-    char* zErrMsg = nullptr;
 
-    std::string sql = "SELECT * FROM USERS WHERE USERNAME='" + username + "' AND PASSWORD='" + new_pass + "';";
+    // Obtain the hashed password from the database
+    std::string sql = "SELECT PASSWORD FROM USERS WHERE USERNAME=?;";
+    sqlite3_stmt *stmt;
+    std::vector<unsigned char> hashed_password_from_db;
 
-    bool authenticated = false;
-
-    int rc = sqlite3_exec(DB, sql.c_str(), auth_callback, (void *)&authenticated, &zErrMsg);
-
-    if (rc != SQLITE_OK) {
-        fprintf(stderr, "SQL error: %s\n", zErrMsg);
-        log << "Authentication was not successful due to SQL error" << std::endl;
-        std::cout << "Authentication was not successful due to SQL error" << std::endl;
-    } else if(!authenticated) {
-        log << "Authentication was not successful, user not found" << std::endl;
-        std::cout << "Authentication was not successful, user not found" << std::endl;
-    } else {
-        log << "Authentication was successful" << std::endl;
-        std::cout << "Authentication was successful" << std::endl;
-        return 0;
+    if (sqlite3_prepare_v2(DB, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
+        std::cerr << "Failed to prepare statement.\n";
+        return -1;
     }
 
-    sqlite3_free(zErrMsg);
-    return -1;
+    sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
+
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        int length = sqlite3_column_bytes(stmt, 0);
+        hashed_password_from_db.resize(length);
+        void* blob = (void*)sqlite3_column_blob(stmt, 0);
+        memcpy(hashed_password_from_db.data(), blob, length);
+    }
+
+    sqlite3_finalize(stmt);
+
+    if (hashed_password_from_db.empty()) {
+        log << "Authentication was not successful. User not found.\n";
+        return -1;
+    }
+
+    // Temporary string that contains hashed password to pass to the `crypto_pwhash_str_verify` function
+    std::string temp((char*)hashed_password_from_db.data(), hashed_password_from_db.size());
+
+    // Verify the password
+    if (crypto_pwhash_str_verify(temp.c_str(), password.c_str(), password.length()) != 0) {
+        log << "Authentication was not successful. Invalid password.\n";
+        return -1;
+    }
+
+    log << "Authentication was successful.\n";
+    return 0;
 }
 
 /**
@@ -1456,7 +1476,8 @@ int Server::auth(const std::string& username, const std::string& password) {
  */
 int Server::addUser(const std::string& name, const std::string& password) {
     log << "Adding user " << name << ".." << std::endl;
-    std::string new_pass = hash_pass(password);
+
+    std::vector<unsigned char> new_pass = hash_pass(password);
 
     sqlite3_stmt* stmt;
     std::string query = "SELECT 1 FROM USERS WHERE USERNAME = ?";
@@ -1474,7 +1495,7 @@ int Server::addUser(const std::string& name, const std::string& password) {
     query = "INSERT INTO USERS (USERNAME, PASSWORD) VALUES (?, ?)";
     if (sqlite3_prepare_v2(DB, query.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
         sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_text(stmt, 2, new_pass.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_blob(stmt, 2, new_pass.data(), new_pass.size(), SQLITE_STATIC);  // Using sqlite3_bind_blob() for binary data
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
             log << "Adding user was not successful" << std::endl;
@@ -1503,10 +1524,10 @@ int Server::initDB() {
     log << "initialising db.." << std::endl;
     char* zErrMsg = nullptr;
 
-    std::string sql = "CREATE TABLE USERS(" \
-        "ID INT PRIMARY KEY," \
-        "USERNAME     TEXT    UNIQUE," \
-        "PASSWORD     TEXT);";
+    std::string sql = "CREATE TABLE USERS(" \		
+                      "ID INTEGER PRIMARY KEY AUTOINCREMENT," \
+                      "USERNAME     TEXT    UNIQUE," \
+                      "PASSWORD     BLOB);";
 
     int rc = sqlite3_exec(DB, sql.c_str(), callback, this, &zErrMsg);
 
@@ -1634,36 +1655,6 @@ int Server::handleSQL(int rc, const char* zErrMsg, const char* operation) {
 }
 
 /**
- * @brief Callback function for the authentication process.
- *
- * This function is used as a callback for the authentication process by the SQLite library.
- * It is called for each row returned in a query result.
- *
- * @param NotUsed A pointer to unused data.
- * @param argc The number of columns in the result row.
- * @param argv An array of strings representing the values of each column in the result row.
- * @param azColName An array of strings representing the names of each column in the result row.
- *
- * @return The number of columns in the result row.
- */
-
-int Server::auth_callback(void *data, int argc, char **argv, char **azColName) {
-    for(int i = 0; i < argc; i++) {
-        // Print column name and value (can be NULL)
-        printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
-    }
-    printf("\n");
-
-    bool *authenticated = reinterpret_cast<bool *>(data);
-
-    if(argv[0]) {
-        *authenticated = true;
-    }
-
-    return 0;
-}
-
-/**
  * @brief Remove a user from the USERS table in the database.
  *
  * @details
@@ -1740,6 +1731,7 @@ int Server::handleAuth(char* command) {
     for (int i = 0, len = (int)strlen(command); i < len; i++) {
         if (command[i] == ' ') {
             space_counter++;
+            i++;
             second_word = true;
         }
 

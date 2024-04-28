@@ -57,6 +57,7 @@
 #include <chrono>
 #include <sqlite3.h>
 #include <unordered_map>
+#include <sodium.h>
 
 class Server {
 private:
@@ -120,8 +121,8 @@ private:
     int callbackImpl(int argc, char** argv, char** azColName);
     bool dbIsEmpty();
     int handleSQL(int rc, const char *zErrMsg, const char *operation);
-    static int auth_callback(void *data, int argc, char **argv, char**azColName);
     int auth(const std::string &username, const std::string &password);
+    static std::vector<unsigned char> hash_pass(const std::string &password);
 
 public:
     /**
@@ -134,6 +135,9 @@ public:
      * @throws std::runtime_error if an error occurs when initializing the server.
      */
     Server(const std::string& spec_port) {
+        if(sodium_init() < 0)
+            throw std::runtime_error("Could not init sodium");
+
         settingsPath = "settings.txt";
 
         log.open("log.txt");

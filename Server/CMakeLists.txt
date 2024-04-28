@@ -23,3 +23,6 @@ target_link_libraries(Server PRIVATE ${SQLITE_LIBRARIES})
 # Find LZ4 and link
 include_directories(${LZ4_INCLUDE_DIR})
 target_link_libraries(Server PRIVATE ${LZ4_LIBRARY})
+
+include_directories(${LIBSODIUM_INCLUDE_DIR})
+target_link_libraries(Server PRIVATE ${LIBSODIUM_LIBRARY})
