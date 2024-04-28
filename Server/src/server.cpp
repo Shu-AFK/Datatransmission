@@ -807,7 +807,7 @@ void stop_serv(fd_set* master) {
  * the command "exit" and stop server.
  */
 
-void Server::run() {
+int Server::run() {
     int res;
     fd_set master, read_fds;
     FD_ZERO(&master);
@@ -824,7 +824,8 @@ void Server::run() {
         if (select(0, &read_fds, nullptr, nullptr, nullptr) == SOCKET_ERROR) {
             if (STOP) break;
             std::cout << "select error: " << WSAGetLastError() << std::endl;
-            break;
+            log << "select error: " << WSAGetLastError() << std::endl;
+            return 1;
         }
         else {
             if (STOP) break;
@@ -833,7 +834,10 @@ void Server::run() {
                     if (read_fds.fd_array[i] == ListenSocket) { // on listenSock, so trying to accept new client
                         newfd = accept(ListenSocket, NULL, NULL);
                         if (newfd == INVALID_SOCKET)
+                        {
                             std::cout << "Accepted invalid socket" << std::endl;
+                            log << "Accepted invalid socket" << std::endl;
+                        }
                         else {
                             FD_SET(newfd, &master);
                             LastSock = newfd;
@@ -863,11 +867,13 @@ void Server::run() {
                         else if (iResult == 0)
                         {
                             std::cout << "User " << userMap[read_fds.fd_array[i]] << " has disconnected" << std::endl;
+							log << "User " << userMap[read_fds.fd_array[i]] << " has disconnected" << std::endl;
                             closesocket(read_fds.fd_array[i]);
                             FD_CLR(read_fds.fd_array[i], &master);
                         }
                         else {
-                            printf("recv failed with error: %d\n", WSAGetLastError());
+                            std::cout << "recv failed with error: " << WSAGetLastError() << std::endl;
+                            log << "recv failed with error: " << WSAGetLastError() << std::endl; 
                             closesocket(read_fds.fd_array[i]);
                         }
                     }

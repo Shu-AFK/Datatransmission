@@ -229,7 +229,7 @@ public:
         sqlite3_close(DB);
     }
 
-    void run();
+    int run();
     int addUser(const std::string& name, const std::string& password);
     int remUser(const std::string& name);
     int addStartup();
