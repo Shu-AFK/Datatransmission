@@ -512,7 +512,7 @@ int Server::handleMakeDirectoryCommand(char* path) {
     shiftStrLeft(path, 6);
 
     // Creates a directory if it doesn't exist already
-    if (CreateDirectory(LPCWSTR(path), NULL) || ERROR_ALREADY_EXISTS == GetLastError())
+    if (CreateDirectory(reinterpret_cast<LPCSTR>(LPCWSTR(path)), NULL) || ERROR_ALREADY_EXISTS == GetLastError())
     {
         std::string sendSuc = std::format("Directory {} was successfully created!", path);
 
@@ -1387,8 +1387,7 @@ int Server::handleCheckInStartup() {
  * @return 0 on success, -1 on failure to send the message.
  */
 
-int Server::handleSend(std::string sen) {
-
+int Server::handleSend(std::string sen, SOCKET sock) {
     sen += '\f';
 
     int iSendResult = send(sock, sen.c_str(), (int)sen.length(), 0);
