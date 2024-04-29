@@ -92,6 +92,7 @@ public:
     }
 
     void run();
+    void closeConnection();
 };
 
 #endif //DATATRANSMISSION_CLIENT_H

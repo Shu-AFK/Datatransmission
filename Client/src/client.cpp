@@ -29,10 +29,7 @@ start:
         log << "shell $ " << command << std::endl;
 		
 		if (strncmp(command.c_str(), "exit", 4) == 0) {
-            std::cout << "Closing connection..." << std::endl;
-            closesocket(ConnectSocket);
-            WSACleanup();
-            return;
+            closeConnection();
         }
 
         // Checks if the typed command is copy_from, due to it needing different procedure
@@ -380,4 +377,11 @@ std::string Client::recvData(SOCKET clientSocket, std::string cmd) {
         }
 
     }
+}
+
+void Client::closeConnection() {
+    std::cout << "Closing connection..." << std::endl;
+    log.close();
+    closesocket(ConnectSocket);
+    WSACleanup();
 }

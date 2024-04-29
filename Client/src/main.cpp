@@ -1,6 +1,11 @@
 #define WIN32_LEAN_AND_MEAN
 
+#include <cstdlib>
+#include <memory>
+
 #include "client.h"
+
+std::unique_ptr<Client> client;
 
 /**
 * @brief Prints the usage information for the program.
@@ -72,6 +77,12 @@ void get_flags(int argc, char **argv) {
     }
 }
 
+void onClose() {
+    if (client) {
+        client->closeConnection();
+    }
+}
+
 /*
  * main
  *
@@ -93,8 +104,9 @@ int _cdecl main(int argc, char **argv)
 {
     try {
         get_flags(argc, argv);
-        Client client(ip, port, username, password);
-        client.run();
+        client = std::make_unique<Client>(ip, port, username, password);
+        std::atexit(onClose);
+        client->run();
         return EXIT_SUCCESS;
     } catch (const std::runtime_error &e) {
         std::cerr << e.what() << std::endl;
