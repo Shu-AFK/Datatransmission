@@ -17,7 +17,7 @@ if(WIN32)
     target_link_libraries(Server PRIVATE Ws2_32)
 endif()
 
-set(SQLITE_LIBRARIES "${SQLITE_PATH}\\sqlite3.dll")
+set(SQLITE_LIBRARIES "${SQLITE_PATH}\\sqlite3.lib")
 target_link_libraries(Server PRIVATE ${SQLITE_LIBRARIES})
 
 # Find LZ4 and link
