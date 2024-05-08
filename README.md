@@ -108,7 +108,7 @@ Next, you'll need to build the project. You can do this by running the provided 
 .\build.bat "C:\path\to\vcpkg"
 ```
 
-The batch script will create a `build` directory if one doesn't exist, configure the project using CMake with the provided SQLite path, and then build the project in release mode.
+The batch script will create a `build` directory if one doesn't exist, configure the project using CMake with the provided vcpkg path, and then build the project in release mode.
 
 ### 5.4 Run the project
 
