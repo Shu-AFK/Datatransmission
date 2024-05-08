@@ -1248,18 +1248,24 @@ void Server::handleTimeout() {
 int Server::move_start() {
     if (inStartup)
         return -2;
+	if(auto p = find_path(std::filesystem::current_path(), "scripts")) {
+		auto path_to_bat = std::filesystem::path(*p / "move_startup.bat");
+		if(system(path_to_bat.string().c_str()) != 0)
+			return -1;
+		}
+	else {
+		log << "Can't find scripts folder" << std::endl;
+		return -1;
+	}
 
-    if(system(R"(..\..\Server\src\scripts\move_startup.bat)") != 0)
-        return -1;
+		inStartup = true;
 
-    inStartup = true;
+		std::string message = "Successfully added Server.exe to startup!";
 
-    std::string message = "Successfully added Server.exe to startup!";
+		if (handleSend(message, LastSock) == -1)
+			return 1;
 
-    if (handleSend(message, LastSock) == -1)
-        return 1;
-
-    return 0;
+		return 0;
 }
 
 
@@ -1274,11 +1280,20 @@ int Server::move_start() {
  *         -1 if there is an error sending the message and if there is an error executing the batch file
  */
 int Server::remove_start() {
+	std::string path_to_bat;
+	
     if (!inStartup)
         return -2;
-
+	
+	if(auto p = find_path(std::filesystem::current_path(), "scripts")) {
+		path_to_bat = std::filesystem::path(*p / "remove_startup.bat").string();
+	}
+	else {
+		log << "Can't find scripts folder" << std::endl;
+		return -1;
+	}
     std::filesystem::path cwd = std::filesystem::current_path();
-    std::string command = std::format(R"(..\..\Server\src\scripts\remove_startup.bat {})", cwd.string());
+    std::string command = std::format("{} {}", path_to_bat, cwd.string());
     int exit_code = std::system(command.c_str());
 
     if (exit_code == 1) {
@@ -1537,7 +1552,7 @@ int Server::initDB() {
     log << "initialising db.." << std::endl;
     char* zErrMsg = nullptr;
 
-    std::string sql = "CREATE TABLE USERS(" \		
+    std::string sql = "CREATE TABLE USERS(" \
                       "ID INTEGER PRIMARY KEY AUTOINCREMENT," \
                       "USERNAME     TEXT    UNIQUE," \
                       "PASSWORD     BLOB);";
@@ -1715,9 +1730,16 @@ int Server::remUser(const std::string& name) {
 int Server::addStartup() {
     if (inStartup)
         return -2;
-
-    if(system(R"(..\..\Server\src\scripts\move_startup.bat)") != 0)
-        return -1;
+	
+	if(auto p = find_path(std::filesystem::current_path(), "scripts")) {
+		auto path_to_bat = std::filesystem::path(*p / "move_startup.bat");
+		if(system(path_to_bat.string().c_str()) != 0)
+			return -1;
+		}
+	else {
+		log << "Can't find scripts folder" << std::endl;
+		return -1;
+	}
 
     inStartup = true;
 
