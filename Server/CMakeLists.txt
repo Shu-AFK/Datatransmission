@@ -17,12 +17,14 @@ if(WIN32)
     target_link_libraries(Server PRIVATE Ws2_32)
 endif()
 
-set(SQLITE_LIBRARIES "${SQLITE_PATH}\\sqlite3.lib")
-target_link_libraries(Server PRIVATE ${SQLITE_LIBRARIES})
+# Include sqlite3
+include_directories(Server PRIVATE ${SQLITE_INCLUDE_DIR})
+target_link_libraries(Server PRIVATE ${SQLITE_LIBRARY})
 
 # Find LZ4 and link
 include_directories(${LZ4_INCLUDE_DIR})
 target_link_libraries(Server PRIVATE ${LZ4_LIBRARY})
 
+# Include Libsodium
 include_directories(${LIBSODIUM_INCLUDE_DIR})
 target_link_libraries(Server PRIVATE ${LIBSODIUM_LIBRARY})
