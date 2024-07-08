@@ -14,6 +14,7 @@ This project relies on the following libraries and tools:
 - [LZ4](https://lz4.github.io/lz4/) for efficient and fast data compression.
 - [libsodium](https://libsodium.gitbook.io/doc) for cryptogrphic operations, including hashing and verifying passwords.
 - [Vcpkg](https://github.com/microsoft/vcpkg) for managing C++ libraries on Windows, macOS, and Linux.
+- [Dear ImGui](https://github.com/ocornut/imgui) for creating client graphical user interfaces.
 - A C++ Compiler with support for C++23 standard.
 
 ### Package install script
