@@ -25,4 +25,5 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Include subdirectories
 add_subdirectory(Server)
 add_subdirectory(Client)
+add_subdirectory(Client/src/gui)
 add_subdirectory(tests)
