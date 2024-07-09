@@ -1,3 +1,5 @@
+/* https://learn.microsoft.com/en-us/windows/win32/winsock/using-secure-socket-extensions */
+
 /*
  *  Filename: server.h
  *  Author: Floyd
@@ -42,12 +44,21 @@
 
 #define WIN32_LEAN_AND_MEAN
 
+#ifndef UNICODE
+#define UNICODE
+#endif
+
+#include "helper.h"
+
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+
+#include <sqlite3.h>
+#include <sodium.h>
+
 #include <cstdio>
 #include <fstream>
-#include "helper.h"
 #include <direct.h>
 #include <filesystem>
 #include <iostream>
@@ -55,29 +66,38 @@
 #include <regex>
 #include <sstream>
 #include <chrono>
-#include <sqlite3.h>
 #include <unordered_map>
-#include <sodium.h>
 
 class Server {
 private:
+    // Constants
     static constexpr const int DEFAULT_BUFLEN = 512;
+
+    // Socket information
+    struct addrinfo* result = nullptr, * ptr = nullptr, hints;
+    std::unordered_map<SOCKET, std::string> userMap;
     SOCKET ClientSocket = INVALID_SOCKET;
     SOCKET ListenSocket = INVALID_SOCKET;
     SOCKET LastSock = INVALID_SOCKET;
-    std::ofstream log;
-    std::fstream settings;
     WSADATA wsaData;
     std::string port;
+
+    // Files
+    std::ofstream log;
+    std::fstream settings;
     std::filesystem::path settingsPath;
+
+    // Program specific booleans
     bool inStartup = false;
+
+    // Received data
     int iResult;
-    struct addrinfo* result = nullptr, * ptr = nullptr, hints;
     char recvbuf[DEFAULT_BUFLEN];
     int recvbuflen = DEFAULT_BUFLEN;
+
+    // Databse
     std::string db_name = "users.db";
     sqlite3* DB;
-    std::unordered_map<SOCKET, std::string> userMap;
 
     int handlePwdCommand();
     static void handleExitCommand();

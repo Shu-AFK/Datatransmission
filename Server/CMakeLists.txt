@@ -15,13 +15,15 @@ endif()
 # Link against the Winsock library on Windows
 if(WIN32)
     target_link_libraries(Server PRIVATE Ws2_32)
+    target_link_libraries(Server PRIVATE fwpuclnt) # fwpuclnt.lib for Winsock secure socket extensions
+    target_link_libraries(Server PRIVATE ntdsapi) # ntdsapi.lib for DsMakeSpn function
 endif()
 
 # Include sqlite3
 include_directories(Server PRIVATE ${SQLITE_INCLUDE_DIR})
 target_link_libraries(Server PRIVATE ${SQLITE_LIBRARY})
 
-# Find LZ4 and link
+# Include lz4
 include_directories(${LZ4_INCLUDE_DIR})
 target_link_libraries(Server PRIVATE ${LZ4_LIBRARY})
 

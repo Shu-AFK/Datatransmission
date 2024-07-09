@@ -3,6 +3,8 @@ SET vcpkg_dir=%1
 SET install_vcpkg_flag=%2
 SET packages=(lz4 libsodium sqlite3)
 
+git submodule update --init --recursive
+
 IF "%install_vcpkg_flag%"=="-install" (
     echo Cloning vcpkg repository and building vcpkg...
     git clone https://github.com/microsoft/vcpkg.git %vcpkg_dir%

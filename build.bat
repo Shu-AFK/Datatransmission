@@ -1,4 +1,6 @@
 @echo off
+git submodule update --init --recursive
+
 REM Make a new directory to store the build files
 if not exist build (
     mkdir build

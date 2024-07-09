@@ -512,7 +512,7 @@ int Server::handleMakeDirectoryCommand(char* path) {
     shiftStrLeft(path, 6);
 
     // Creates a directory if it doesn't exist already
-    if (CreateDirectory(reinterpret_cast<LPCSTR>(LPCWSTR(path)), NULL) || ERROR_ALREADY_EXISTS == GetLastError())
+    if (CreateDirectory(reinterpret_cast<LPCWSTR>(reinterpret_cast<LPCSTR>(LPCWSTR(path))), NULL) || ERROR_ALREADY_EXISTS == GetLastError())
     {
         std::string sendSuc = std::format("Directory {} was successfully created!", path);
 
