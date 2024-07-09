@@ -1,5 +1,3 @@
-/* https://github.com/rdbo/ImGui-DirectX-11-Kiero-Hook/blob/master/ImGui%20DirectX%2011%20Kiero%20Hook/main.cpp */
-
 #define IMGUI_API
 
 #include "imgui.h"
