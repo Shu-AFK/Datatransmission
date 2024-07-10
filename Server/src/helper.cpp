@@ -89,21 +89,25 @@ int create_start_script(const std::string& cwd, const std::string& port) {
  * If found the target returns path, that can be accessed through operator *. (Implicitly converts to true)
  * If not returns std::nullopt. (Implicitly converts to false)
  */
-std::optional<std::filesystem::path> find_path(std::filesystem::path start_path, std::string target) {
-	try {
-		while (start_path != start_path.root_directory()) {
-			for (auto const& dir_entry : std::filesystem::recursive_directory_iterator(start_path))
-			{
-				if (exists(dir_entry.path() / target)) {
-					auto p_ret = dir_entry.path();
-					return p_ret / target;
-				}
-			}
-			start_path = start_path.parent_path();
-		}
-		return std::nullopt;
-	}
-	catch (const std::filesystem::filesystem_error& ex) {
-		std::cerr << "Exception: " << ex.what() << '\n';
-	}
+std::optional<std::filesystem::path> find_path(std::filesystem::path start_path, const std::string& target_directory) {
+    try {
+        while (start_path != start_path.root_directory()) {
+            if (std::filesystem::exists(start_path / target_directory)) {
+                return start_path / target_directory;
+            }
+
+            for (const auto& directory_entry : std::filesystem::recursive_directory_iterator(start_path)) {
+                if (std::filesystem::exists(directory_entry.path() / target_directory)) {
+                    return directory_entry.path() / target_directory;
+                }
+            }
+
+            start_path = start_path.parent_path();
+        }
+    }
+    catch (const std::filesystem::filesystem_error& ex) {
+        std::cerr << "Exception: " << ex.what() << '\n';
+    }
+
+    return std::nullopt;
 }

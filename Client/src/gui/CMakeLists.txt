@@ -10,13 +10,15 @@ set(IMGUI_SOURCES
         ${imgui_dir}/imgui_tables.cpp
         ${imgui_dir}/backends/imgui_impl_win32.cpp
         ${imgui_dir}/backends/imgui_impl_dx11.cpp
-        ${imgui_dir}/imgui_demo.cpp
 )
 
 add_library(imgui STATIC ${IMGUI_SOURCES})
 
 target_include_directories(imgui PUBLIC ${imgui_dir})
 
-add_executable(Client_GUI main.cpp)
+add_executable(Client_GUI
+        main.cpp
+        ${CMAKE_SOURCE_DIR}/Server/src/helper.cpp
+)
 
 target_link_libraries(Client_GUI PRIVATE imgui d3d11 dwmapi d3dcompiler)

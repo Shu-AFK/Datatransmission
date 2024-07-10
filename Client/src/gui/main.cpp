@@ -1,9 +1,13 @@
 #define IMGUI_API
 
+#include "../../../Server/src/helper.h"
+
 #include "imgui.h"
 #include "backends/imgui_impl_dx11.h"
 #include "backends/imgui_impl_win32.h"
+
 #include <cmath>
+
 #include <windows.h>
 #include <d3d11.h>
 #include <tchar.h>
@@ -22,8 +26,18 @@ void CleanupRenderTarget();
 LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lparam);
 
 void imgui_theme();
+void set_font(ImGuiIO &io);
 
-void renderGUI(bool &show_window);
+void renderGUI(bool *done);
+
+bool saveLogs();
+
+struct fonts {
+    ImFont *default_font;
+    ImFont *heading_font;
+};
+
+fonts fonts = {nullptr};
 
 int main(int argc, char **argv) {
     // Creates the application window
@@ -38,11 +52,11 @@ int main(int argc, char **argv) {
             nullptr,
             nullptr,
             nullptr,
-            L"ImGui Example",
+            L"DT-Client",
             nullptr
     };
     ::RegisterClassExW((&wc));
-    HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"Client GUI", WS_OVERLAPPEDWINDOW, 100, 100,
+    HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"DT-Client", WS_OVERLAPPEDWINDOW, 100, 100,
                                 1280, 800, nullptr, nullptr, wc.hInstance, nullptr);
 
     // Initialize Direct3D
@@ -59,7 +73,7 @@ int main(int argc, char **argv) {
     // Setting up ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO &io = ImGui::GetIO(); (void) io;
+    ImGuiIO &io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enables the keyboard
 
     ImGui::StyleColorsDark();
@@ -69,6 +83,8 @@ int main(int argc, char **argv) {
     ImGui_ImplDX11_Init(device, context);
 
     imgui_theme();
+    set_font(io);
+
     bool show_window = true;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
@@ -108,7 +124,7 @@ int main(int argc, char **argv) {
         ImGui::NewFrame();
 
         if(show_window)
-            renderGUI(show_window);
+            renderGUI(&done);
 
         // Rendering
         ImGui::Render();
@@ -244,25 +260,60 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     return ::DefWindowProcW(hwnd, msg, wparam, lparam);
 }
 
-void renderGUI(bool &show_window) {
+void renderGUI(bool *done) {
+    static bool show_about_window = false;
+    static bool show_instruction_window = false;
+
     ImGui::SetNextWindowPos(ImVec2(0, 0));
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
-    ImGui::Begin("Client GUI", nullptr, ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
-    // if(ImGui::BeginMenuBar())
+    ImGui::Begin("DT-Client", nullptr, ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_MenuBar);
 
-    // Generate samples and plot them
-    float samples[100];
-    for (int n = 0; n < 100; n++)
-        samples[n] = sinf(n * 0.2f + ImGui::GetTime() * 1.5f);
-    ImGui::PlotLines("Samples", samples, 100);
+    ImGui::PushFont(fonts.default_font);
 
-    // Display contents in a scrolling region
-    ImGui::TextColored(ImVec4(1,1,0,1), "Important Stuff");
-    ImGui::BeginChild("Scrolling");
-    for (int n = 0; n < 50; n++)
-        ImGui::Text("%04d: Some text", n);
-    ImGui::EndChild();
+    // Menu Bar
+    if(ImGui::BeginMenuBar()) {
+        if(ImGui::BeginMenu("File")) {
+            if(ImGui::MenuItem("Save logs", "Ctrl+S")) { saveLogs(); }
+            if(ImGui::MenuItem("Close", "Ctrl+Q")) { *done = true; }
+            ImGui::EndMenu();
+        }
+
+        if(ImGui::BeginMenu("Help")) {
+            if (ImGui::MenuItem("About")) { show_about_window = true; }
+            if (ImGui::MenuItem("Instruction")) { show_instruction_window = true; }
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMenuBar();
+    }
+
+    if (show_about_window) {
+        ImGui::Begin("About", &show_about_window);
+        ImGui::Text("A simple remote access tool client.");
+        ImGui::End();
+    }
+
+    if(show_instruction_window) {
+        ImGui::SetNextWindowSize(ImVec2(500, 200));
+        ImGui::Begin("Instruction", &show_instruction_window, ImGuiWindowFlags_NoResize);
+        ImGui::PushTextWrapPos(450.0f);
+        ImGui::TextUnformatted("Type the information of the server(ip, port) into the boxes, as well as your user account name and password. Then click connect. Afterwards the status should say connected and you are free to type in commands into the message box. For more information about the possible commands, please have a look at the 'README.md'.");
+        ImGui::PopTextWrapPos();
+        ImGui::End();
+    }
+
+    ImGui::PopFont();
+    ImGui::PushFont(fonts.heading_font);
+    ImGui::Text("DT-Client"); // Heading
+    ImGui::PopFont();
+    ImGui::PushFont(fonts.default_font);
+
+    ImGui::PopFont();
     ImGui::End();
+}
+
+bool saveLogs() {
+    return true;
 }
 
 void imgui_theme() {
@@ -344,4 +395,26 @@ void imgui_theme() {
     style.GrabRounding                      = 3;
     style.LogSliderDeadzone                 = 4;
     style.TabRounding                       = 4;
+}
+
+void set_font(ImGuiIO &io) {
+    ImFont *defaultFont;
+    ImFont *headingFont;
+
+    if(auto p = find_path(std::filesystem::current_path(), "assets")) {
+        std::string font_path = (p.value() / "fonts/JetBrainsMono-Medium.ttf").string();
+        defaultFont = io.Fonts->AddFontFromFileTTF(font_path.c_str(), 16.0f);
+        headingFont = io.Fonts->AddFontFromFileTTF(font_path.c_str(), 24.0f);
+    } else {
+        ImFontConfig config16;
+        config16.SizePixels = 16;
+        defaultFont = io.Fonts->AddFontDefault(&config16);
+
+        ImFontConfig config36;
+        config36.SizePixels = 24;
+        headingFont = io.Fonts->AddFontDefault(&config36);
+    }
+
+    fonts.default_font = defaultFont;
+    fonts.heading_font = headingFont;
 }
