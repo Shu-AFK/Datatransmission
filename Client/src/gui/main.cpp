@@ -410,9 +410,9 @@ void set_font(ImGuiIO &io) {
         config16.SizePixels = 16;
         defaultFont = io.Fonts->AddFontDefault(&config16);
 
-        ImFontConfig config36;
-        config36.SizePixels = 24;
-        headingFont = io.Fonts->AddFontDefault(&config36);
+        ImFontConfig config24;
+        config24.SizePixels = 24;
+        headingFont = io.Fonts->AddFontDefault(&config24);
     }
 
     fonts.default_font = defaultFont;
