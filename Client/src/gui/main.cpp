@@ -6,8 +6,6 @@
 #include "backends/imgui_impl_dx11.h"
 #include "backends/imgui_impl_win32.h"
 
-#include <cmath>
-
 #include <windows.h>
 #include <d3d11.h>
 #include <tchar.h>
@@ -27,9 +25,14 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lparam);
 
 void imgui_theme();
 void set_font(ImGuiIO &io);
+void displayTextHeading(const std::string &str);
+void displayInputLine(const std::string &text, char *buffer, const std::string &id, size_t size, ImGuiInputTextFlags flags);
+void verticalSpacing(size_t n);
 
 void renderGUI(bool *done);
 
+bool checkInputs(char *ipv4, char *port, char *username, char *password);
+void connectToServer(char *ipv4, char *port, char *username, char *password);
 bool saveLogs();
 
 struct fonts {
@@ -38,6 +41,8 @@ struct fonts {
 };
 
 fonts fonts = {nullptr};
+
+size_t input_id = 2;
 
 int main(int argc, char **argv) {
     // Creates the application window
@@ -260,6 +265,8 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     return ::DefWindowProcW(hwnd, msg, wparam, lparam);
 }
 
+bool displayErrorText = false;
+
 void renderGUI(bool *done) {
     static bool show_about_window = false;
     static bool show_instruction_window = false;
@@ -302,11 +309,39 @@ void renderGUI(bool *done) {
         ImGui::End();
     }
 
-    ImGui::PopFont();
-    ImGui::PushFont(fonts.heading_font);
-    ImGui::Text("DT-Client"); // Heading
-    ImGui::PopFont();
-    ImGui::PushFont(fonts.default_font);
+    // Heading
+    verticalSpacing(2);
+    displayTextHeading("DT-Client");
+    verticalSpacing(2);
+    ImGui::Separator();
+    verticalSpacing(2);
+
+    static char ipv4[15];
+    displayInputLine("Server Address: ", ipv4, "###addr", IM_ARRAYSIZE(ipv4), 0);
+    static char port[5];
+    displayInputLine("Server Port:    ", port, "###port", IM_ARRAYSIZE(port), 0);
+    static char username[32];
+    displayInputLine("Username:       ", username, "###username", IM_ARRAYSIZE(username), 0);
+    static char password[32];
+    displayInputLine("Password:       ", password, "###pw", IM_ARRAYSIZE(password), ImGuiInputTextFlags_Password);
+
+    if(ImGui::Button("Connect")) {
+        if(!checkInputs(ipv4, port, username, password)) {
+            displayErrorText = true;
+        } else {
+            displayErrorText = false;
+            connectToServer(ipv4, port, username, password);
+        }
+    }
+
+    if(displayErrorText) {
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "[E] Input error");
+    }
+    verticalSpacing(2);
+    ImGui::Separator();
+    verticalSpacing(2);
+
 
     ImGui::PopFont();
     ImGui::End();
@@ -406,6 +441,7 @@ void set_font(ImGuiIO &io) {
         defaultFont = io.Fonts->AddFontFromFileTTF(font_path.c_str(), 16.0f);
         headingFont = io.Fonts->AddFontFromFileTTF(font_path.c_str(), 24.0f);
     } else {
+        std::cout << "[E] Can't find font.. using default font" << std::endl;
         ImFontConfig config16;
         config16.SizePixels = 16;
         defaultFont = io.Fonts->AddFontDefault(&config16);
@@ -417,4 +453,34 @@ void set_font(ImGuiIO &io) {
 
     fonts.default_font = defaultFont;
     fonts.heading_font = headingFont;
+}
+
+void displayTextHeading(const std::string &str) {
+    ImGui::PopFont();
+    ImGui::PushFont(fonts.heading_font);
+    ImGui::Text(str.c_str());
+    ImGui::PopFont();
+    ImGui::PushFont(fonts.default_font);
+}
+
+void displayInputLine(const std::string &text, char *buffer, const std::string &id, size_t size, ImGuiInputTextFlags flags) {
+    ImGui::Text(text.c_str());
+    ImGui::SameLine();
+    ImGui::PushItemWidth(ImGui::GetWindowWidth() / 3);
+    ImGui::InputText(id.c_str(), buffer, size, flags);
+    ImGui::PopItemWidth();
+}
+
+bool checkInputs(char *ipv4, char *port, char *username, char *password) {
+    return false;
+}
+
+void connectToServer(char *ipv4, char *port, char *username, char *password) {
+
+}
+
+void verticalSpacing(size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        ImGui::Spacing();
+    }
 }
