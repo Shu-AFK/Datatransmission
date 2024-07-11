@@ -21,4 +21,4 @@ add_executable(Client_GUI
         ${CMAKE_SOURCE_DIR}/Server/src/helper.cpp
 )
 
-target_link_libraries(Client_GUI PRIVATE imgui d3d11 dwmapi d3dcompiler)
+target_link_libraries(Client_GUI PRIVATE imgui d3d11 dwmapi d3dcompiler ws2_32)

@@ -1,4 +1,11 @@
+// TODO: Next to form display a list of all connected clients. With a double click switch the chat to that client
+
 #define IMGUI_API
+
+#if defined (_WIN32) && (_WIN32_WINNT < 0x0600)
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0x0600
+#endif
 
 #include "../../../Server/src/helper.h"
 
@@ -6,7 +13,9 @@
 #include "backends/imgui_impl_dx11.h"
 #include "backends/imgui_impl_win32.h"
 
+#include <winsock2.h>
 #include <windows.h>
+#include <ws2tcpip.h>
 #include <d3d11.h>
 #include <tchar.h>
 
@@ -316,9 +325,9 @@ void renderGUI(bool *done) {
     ImGui::Separator();
     verticalSpacing(2);
 
-    static char ipv4[15];
+    static char ipv4[16];
     displayInputLine("Server Address: ", ipv4, "###addr", IM_ARRAYSIZE(ipv4), 0);
-    static char port[5];
+    static char port[6];
     displayInputLine("Server Port:    ", port, "###port", IM_ARRAYSIZE(port), 0);
     static char username[32];
     displayInputLine("Username:       ", username, "###username", IM_ARRAYSIZE(username), 0);
@@ -471,8 +480,22 @@ void displayInputLine(const std::string &text, char *buffer, const std::string &
     ImGui::PopItemWidth();
 }
 
-bool checkInputs(char *ipv4, char *port, char *username, char *password) {
+bool isValidPort(const char *port) {
+    int portNum = atoi(port);
+    if (portNum >= 1024 && portNum <= 65535) {
+        return true;
+    }
     return false;
+}
+
+bool isValidIpv4(const char *ipv4) {
+    struct sockaddr_in sa = {};
+    int result = inet_pton(AF_INET, ipv4, &(sa.sin_addr));
+    return result != 0;
+}
+
+bool checkInputs(char *ipv4, char *port, char *username, char *password) {
+    return isValidIpv4(ipv4) && isValidPort(port) && username[0] != '\0' && password[0] != '\0';
 }
 
 void connectToServer(char *ipv4, char *port, char *username, char *password) {
