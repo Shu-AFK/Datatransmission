@@ -8,16 +8,27 @@
 #endif
 
 #include "../../../Server/src/helper.h"
+#include "../client.h"
 
 #include "imgui.h"
 #include "backends/imgui_impl_dx11.h"
 #include "backends/imgui_impl_win32.h"
+
+#include <boost/process.hpp>
+#include <boost/asio.hpp>
+#include <iostream>
 
 #include <winsock2.h>
 #include <windows.h>
 #include <ws2tcpip.h>
 #include <d3d11.h>
 #include <tchar.h>
+
+#include <utility>
+#include <vector>
+#include <memory>
+
+namespace bp = boost::process;
 
 static ID3D11Device             *device = nullptr;
 static ID3D11DeviceContext      *context = nullptr;
@@ -40,7 +51,7 @@ void verticalSpacing(size_t n);
 
 void renderGUI(bool *done);
 
-bool checkInputs(char *ipv4, char *port, char *username, char *password);
+bool checkInputs(char *ipv4, char *port, const char *username, const char *password);
 void connectToServer(char *ipv4, char *port, char *username, char *password);
 bool saveLogs();
 
@@ -49,11 +60,55 @@ struct fonts {
     ImFont *heading_font;
 };
 
+std::string ClientExe;
+
+struct connection {
+    // Pipes
+    bp::pipe in_pipe;
+    bp::pipe out_pipe;
+
+    // Streams
+    bp::ipstream out_stream;
+    bp::opstream in_stream;
+
+    bp::child child;
+
+    // Information
+    std::string ip;
+    std::string port;
+    bool connected;
+
+    explicit connection(std::string ip, std::string port, const std::string &username, const std::string &password)
+    : ip(std::move(ip)), port(std::move(port)) {
+        std::vector<std::string> arguments = {"-s", ip, "-p", port, "-u", username, "-w", password};
+
+        child = bp::child(ClientExe, bp::args(arguments), bp::std_in < in_pipe, bp::std_out > out_pipe);
+
+        // Streams, tied with the pipes
+        in_stream.pipe(in_pipe);
+        out_stream.pipe(out_pipe);
+
+        connected = false;
+    }
+};
+
+std::vector<connection> connections;
+
 fonts fonts = {nullptr};
 
-size_t input_id = 2;
-
 int main(int argc, char **argv) {
+    try {
+        if(auto p = find_path(std::filesystem::current_path(), "Client.exe")) {
+            ClientExe = (p.value() / "Client.exe").string();
+        } else {
+            std::cerr << "[E] Can't find Client.exe!" << std::endl;
+            exit(1);
+        }
+    } catch (const std::filesystem::filesystem_error &e) {
+        std::cerr << "[E] " << e.what() << std::endl;
+        exit(1);
+    }
+
     // Creates the application window
     WNDCLASSEXW wc = {
             sizeof(wc),
@@ -269,6 +324,9 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         case WM_DESTROY:
             ::PostQuitMessage(0);
             return 0;
+        default:
+            break;
+            //assert("[E] Invalid message" && false);
     }
 
     return ::DefWindowProcW(hwnd, msg, wparam, lparam);
@@ -494,12 +552,15 @@ bool isValidIpv4(const char *ipv4) {
     return result != 0;
 }
 
-bool checkInputs(char *ipv4, char *port, char *username, char *password) {
+bool checkInputs(char *ipv4, char *port, const char *username, const char *password) {
     return isValidIpv4(ipv4) && isValidPort(port) && username[0] != '\0' && password[0] != '\0';
 }
 
 void connectToServer(char *ipv4, char *port, char *username, char *password) {
+    connection conn(ipv4, port, username, password);
 
+    //connection conn = {.client = client, .ip = ipv4, .port = port, .connected = true};
+    //connections.push_back(conn);
 }
 
 void verticalSpacing(size_t n) {

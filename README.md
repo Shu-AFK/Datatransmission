@@ -10,9 +10,10 @@ This project relies on the following libraries and tools:
 
 - [CMake](https://cmake.org/) (version 3.12 or higher) for the build system.
 - [SQLite3](https://www.sqlite.org/) for users' database handling.
-- [Winsock Library](https://docs.microsoft.com/en-us/windows/win32/winsock/windows-sockets-start-page-2) (`Ws2_32.lib`) for TCP/IP networking.
+- [Winsock Library](https://docs.microsoft.com/en-us/windows/win32/winsock/windows-sockets-start-page-2) for TCP/IP networking.
 - [LZ4](https://lz4.github.io/lz4/) for efficient and fast data compression.
 - [libsodium](https://libsodium.gitbook.io/doc) for cryptogrphic operations, including hashing and verifying passwords.
+- [Boost](https://www.boost.org/) (specifically [Boost Iostreams](https://www.boost.org/doc/libs/1_75_0/libs/iostreams/doc/index.html)) for managing input and output streams in applications.
 - [Vcpkg](https://github.com/microsoft/vcpkg) for managing C++ libraries on Windows, macOS, and Linux.
 - [Dear ImGui](https://github.com/ocornut/imgui) for creating client graphical user interfaces.
 - A C++ Compiler with support for C++23 standard.

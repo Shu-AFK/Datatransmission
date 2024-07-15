@@ -15,10 +15,11 @@ set(IMGUI_SOURCES
 add_library(imgui STATIC ${IMGUI_SOURCES})
 
 target_include_directories(imgui PUBLIC ${imgui_dir})
+include_directories(${INCLUDE_DIR})
 
 add_executable(Client_GUI
         main.cpp
         ${CMAKE_SOURCE_DIR}/Server/src/helper.cpp
 )
 
-target_link_libraries(Client_GUI PRIVATE imgui d3d11 dwmapi d3dcompiler ws2_32)
+target_link_libraries(Client_GUI PRIVATE imgui d3d11 dwmapi d3dcompiler ws2_32 ${BOOST_LIBS})

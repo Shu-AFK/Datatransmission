@@ -91,18 +91,16 @@ int create_start_script(const std::string& cwd, const std::string& port) {
  */
 std::optional<std::filesystem::path> find_path(std::filesystem::path start_path, const std::string& target_directory) {
     try {
-        while (start_path != start_path.root_directory()) {
-            if (std::filesystem::exists(start_path / target_directory)) {
-                return start_path / target_directory;
-            }
+        // If the parent directory already has the target file/directory
+        if (std::filesystem::exists(start_path / target_directory)) {
+            return start_path / target_directory;
+        }
 
-            for (const auto& directory_entry : std::filesystem::recursive_directory_iterator(start_path)) {
-                if (std::filesystem::exists(directory_entry.path() / target_directory)) {
-                    return directory_entry.path() / target_directory;
-                }
+        // If not, recursively look within folder and sub-folders
+        for (const auto& directory_entry : std::filesystem::recursive_directory_iterator(start_path)) {
+            if (std::filesystem::exists(directory_entry.path() / target_directory)) {
+                return directory_entry.path() / target_directory;
             }
-
-            start_path = start_path.parent_path();
         }
     }
     catch (const std::filesystem::filesystem_error& ex) {
