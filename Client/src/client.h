@@ -44,7 +44,7 @@
 #include <string>
 #include <fstream>
 #include <utility>
-#include <stdio.h>
+#include <cstdio>
 
 #define DEFAULT_BUFLEN 512
 
@@ -67,19 +67,37 @@ private:
     std::string ip, port, username, password;
     std::string None;
 
+    // For GUI use
+#ifdef DATATRANSMISSION_CLIENT_GUI
+    std::string content;
+#endif
+
+    static std::string getLogFilename();
+
 public:
     Client(std::string ip, std::string port, std::string username, std::string password)
-        : ip(std::move(ip)), port(std::move(port)), username(std::move(username)), password(std::move(password)) {
-        ConnectSocket = INVALID_SOCKET;
+            : ip(ip), port(port), username(username), password(password) {
 
-        log.open("log.txt");
-        if (!log)
+        // Log before moving parameters
+        log.open(getLogFilename());
+        if (!log) {
             throw std::runtime_error("Failed to open log file");
+        }
+        log << "IP: " << ip << " Port: " << port << " Username: " << username << std::endl;
+
+        // Now move parameters
+        this->ip = std::move(ip);
+        this->port = std::move(port);
+        this->username = std::move(username);
+        this->password = std::move(password);
+
+        ConnectSocket = INVALID_SOCKET;
 
         try {
             initWinsock();
-            initServerConnection(ip.c_str());
+            initServerConnection(this->ip.c_str());
         } catch (const std::runtime_error &e) {
+            log << e.what() << std::endl;
             throw e;
         }
     }
@@ -93,6 +111,12 @@ public:
 
     void run();
     void closeConnection();
+    int sendCommand(std::string command);
+
+#ifdef DATATRANSMISSION_CLIENT_GUI
+    std::string getBuffer();
+    std::string getIP();
+#endif
 };
 
 #endif //DATATRANSMISSION_CLIENT_H

@@ -24,7 +24,7 @@ include_directories(Server PRIVATE ${SQLITE_INCLUDE_DIR})
 target_link_libraries(Server PRIVATE ${SQLITE_LIBRARY})
 
 # Include lz4
-include_directories(${LZ4_INCLUDE_DIR})
+include_directories(${INCLUDE_DIR})
 target_link_libraries(Server PRIVATE ${LZ4_LIBRARY})
 
 # Include Libsodium

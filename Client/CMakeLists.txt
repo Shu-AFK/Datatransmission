@@ -9,5 +9,5 @@ if(WIN32)
 endif()
 
 # Find LZ4 and link
-include_directories(${LZ4_INCLUDE_DIR})
+include_directories(${INCLUDE_DIR})
 target_link_libraries(Client PRIVATE ${LZ4_LIBRARY})

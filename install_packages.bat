@@ -1,7 +1,7 @@
 @echo off
 SET vcpkg_dir=%1
 SET install_vcpkg_flag=%2
-SET packages=(lz4 libsodium sqlite3 boost)
+SET packages=(lz4 libsodium sqlite3)
 
 git submodule update --init --recursive
 

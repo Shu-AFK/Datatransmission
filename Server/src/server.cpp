@@ -1,3 +1,5 @@
+// TODO: Make the server not crash when a single recv failed
+
 #include "server.h"
 #include <lz4.h>
 

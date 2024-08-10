@@ -4,6 +4,37 @@
 #include <filesystem>
 
 #define RECVBUFLENGTH 1000000
+
+/**
+ * @brief Returns the filename for the next log file.
+ *
+ * @details
+ * This function searches for the highest numbered log file in the
+ * current directory and returns the filename of the next log file to be created.
+ *
+ * @return The filename for the next log file.
+ */
+std::string Client::getLogFilename() {
+    int highestCount = 0;
+
+    for(const auto &entry : std::filesystem::directory_iterator(std::filesystem::current_path())) {
+        std::string filename = entry.path().filename().string();
+        if(filename.substr(0, 3) == "log" && filename.substr(filename.length() - 4, 4) == ".txt") {
+            std::string numPart = filename.substr(3, filename.length() - 7);
+            try {
+                int num = std::stoi(numPart);
+                if (num > highestCount) {
+                    highestCount = num;
+                }
+            } catch (std::invalid_argument&) {
+                continue;
+            }
+        }
+    }
+
+    return std::format("log{}.txt", highestCount + 1);
+}
+
 /**
  * @brief Runs the client program.
  *
@@ -15,119 +46,26 @@
  * the connection or an error occurs.
  */
 void Client::run() {
-    bool isCopyFrom = false;
-
-start:
     while (true) {
         // Clears the strings
         std::string command;
         std::cout << "shell $ ";
         std::getline(std::cin, command);
-        if(command == "")
-            continue;
+        int res = sendCommand(command);
 
-        log << "shell $ " << command << std::endl;
-		
-		if (strncmp(command.c_str(), "exit", 4) == 0) {
-            closeConnection();
-        }
-
-        // Checks if the typed command is copy_from, due to it needing different procedure
-        if(strncmp(command.c_str(), "copy_from ", 10) == 0)
-            isCopyFrom = true;
-
-        // send command to server
-        int iSendResult = sendData(ConnectSocket, command);
-        if(iSendResult == -1) {
-            std::string errorMessage = "Failed to send data, error: " + std::to_string(WSAGetLastError());
-            log << errorMessage << std::endl;
-            std::cerr << errorMessage << std::endl;
-            goto start;
-        }
-
-        if(isCopyFrom) {
-            shiftStrLeft(command, 10);
-
-            std::ifstream input(command);
-            if(!input) {
-                std::string errorMessage = "Failed to open file";
-                std::cerr << errorMessage << std::endl;
-                log << errorMessage << std::endl;
-                goto start;
-            }
-
-            // Sends the file send sequence
-            std::string file_contents;
-            char c;
-            while(input.get(c))
-                file_contents += c;
-
-            input.close();
-
-            // Checks if the file is bigger than 1MB, if yes it's getting compressed before getting sent
-            std::filesystem::path file{command};
-            size_t originalSize = file_contents.size();
-
-            if(std::filesystem::file_size(file) > 1000000) {
-                int maxCompressedSize = LZ4_compressBound(static_cast<int>(originalSize));
-                char *compressed = new char[maxCompressedSize];
-                int compressedSize = LZ4_compress_default(file_contents.c_str(), compressed, static_cast<int>(file_contents.size()), maxCompressedSize);
-
-                if(compressedSize < 0) {
-                    free(compressed);
-                    std::cerr << "Error in compressing file" << std::endl;
-                    log << "Error in compressing file" << std::endl;
-                    goto start;
-                }
-
-                file_contents.clear();
-                file_contents += "\r";
-                file_contents += std::string(reinterpret_cast<char*>(&originalSize), sizeof(originalSize)); // Add original size
-                file_contents += std::string(reinterpret_cast<char*>(&compressedSize), sizeof(compressedSize)); // Add compressed size
-                file_contents.append(compressed, compressed + compressedSize); // Add compressed data
-
-                free(compressed);
-            }
-
-            file_contents.insert(0, "\v\v");
-            file_contents += '\f';
-
-            iSendResult = send(ConnectSocket, file_contents.c_str(), (int) file_contents.length(), 0);
-            if(iSendResult == SOCKET_ERROR) {
-                std::string errormsg = std::format("Failed to send file contents, error: {}", std::to_string(WSAGetLastError()));
-                std::cerr << errormsg << std::endl;
-                log << errormsg << std::endl;
-                goto start;
-            }
-        }
-
-        // read response from server
-        std::string response = recvData(ConnectSocket, command);
-        if (response.empty()) {
-            std::string errorMessage = "Failed to receive data, error: " + std::to_string(WSAGetLastError());
-            log << errorMessage << std::endl;
-            std::cerr << errorMessage << std::endl;
-            goto start;
-        }
-
-        else if (response == "Connection closed") {
-            std::cout << "Connection closing..." << std::endl;
-            log << "Connection closing..." << std::endl;
+        if(res == 1)
             break;
-        }
 
-        else {
-            std::cout << response << std::endl;
-            log << response << std::endl;
-        }
+        if(res < 0)
+            continue;
     }
 
-    // shut down the connection
     iResult = shutdown(ConnectSocket, SD_SEND);
     if (iResult == SOCKET_ERROR) {
         printf("shutdown failed with error: %d\n", WSAGetLastError());
         throw std::runtime_error(std::format("shutdown failed with error: {}", WSAGetLastError()));
     }
+    closeConnection();
 }
 
 /**
@@ -385,3 +323,155 @@ void Client::closeConnection() {
     closesocket(ConnectSocket);
     WSACleanup();
 }
+
+/*
+ *  1 = exit
+ * -1 = continue
+ * -2 = error but continue
+ */
+int Client::sendCommand(std::string command) {
+    bool isCopyFrom = false;
+
+    if(command.empty())
+        return -1;
+
+    log << "shell $ " << command << std::endl;
+
+    if (strncmp(command.c_str(), "exit", 4) == 0) {
+        return 1;
+    }
+
+    // Checks if the typed command is copy_from, due to it needing different procedure
+    if(strncmp(command.c_str(), "copy_from ", 10) == 0)
+        isCopyFrom = true;
+
+    // send command to server
+    int iSendResult = sendData(ConnectSocket, command);
+    if(iSendResult == -1) {
+        std::string errorMessage = "Failed to send data, error: " + std::to_string(WSAGetLastError());
+        log << errorMessage << std::endl;
+#ifndef DATATRANSMISSION_CLIENT_GUI
+        std::cerr << errorMessage << std::endl;
+#else
+        content += errorMessage;
+        content += "\n";
+#endif
+        return -2;
+    }
+
+    if(isCopyFrom) {
+        shiftStrLeft(command, 10);
+
+        std::ifstream input(command);
+        if(!input) {
+            std::string errorMessage = "Failed to open file";
+#ifndef DATATRANSMISSION_CLIENT_GUI
+            std::cerr << errorMessage << std::endl;
+#else
+            content += errorMessage;
+            content += "\n";
+#endif
+            log << errorMessage << std::endl;
+            return -2;
+        }
+
+        // Sends the file send sequence
+        std::string file_contents;
+        char c;
+        while(input.get(c))
+            file_contents += c;
+
+        input.close();
+
+        // Checks if the file is bigger than 1MB, if yes it's getting compressed before getting sent
+        std::filesystem::path file{command};
+        size_t originalSize = file_contents.size();
+
+        if(std::filesystem::file_size(file) > 1000000) {
+            int maxCompressedSize = LZ4_compressBound(static_cast<int>(originalSize));
+            char *compressed = new char[maxCompressedSize];
+            int compressedSize = LZ4_compress_default(file_contents.c_str(), compressed, static_cast<int>(file_contents.size()), maxCompressedSize);
+
+            if(compressedSize < 0) {
+                free(compressed);
+#ifndef DATATRANSMISSION_CLIENT_GUI
+                std::cerr << "Error in compressing file" << std::endl;
+#else
+                content += "Error in compressing file\n";
+#endif
+                log << "Error in compressing file" << std::endl;
+                return -2;
+            }
+
+            file_contents.clear();
+            file_contents += "\r";
+            file_contents += std::string(reinterpret_cast<char*>(&originalSize), sizeof(originalSize)); // Add original size
+            file_contents += std::string(reinterpret_cast<char*>(&compressedSize), sizeof(compressedSize)); // Add compressed size
+            file_contents.append(compressed, compressed + compressedSize); // Add compressed data
+
+            free(compressed);
+        }
+
+        file_contents.insert(0, "\v\v");
+        file_contents += '\f';
+
+        iSendResult = send(ConnectSocket, file_contents.c_str(), (int) file_contents.length(), 0);
+        if(iSendResult == SOCKET_ERROR) {
+            std::string errorMessage = std::format("Failed to send file contents, error: {}", std::to_string(WSAGetLastError()));
+#ifndef DATATRANSMISSION_CLIENT_GUI
+            std::cerr << errorMessage << std::endl;
+#else
+            content += errorMessage;
+            content += "\n";
+#endif
+            log << errorMessage << std::endl;
+            return -2;
+        }
+    }
+
+    // read response from server
+    std::string response = recvData(ConnectSocket, command);
+    if (response.empty()) {
+        std::string errorMessage = "Failed to receive data, error: " + std::to_string(WSAGetLastError());
+        log << errorMessage << std::endl;
+#ifndef DATATRANSMISSION_CLIENT_GUI
+        std::cerr << errorMessage << std::endl;
+#else
+        content += errorMessage;
+        content += "\n";
+#endif
+        return -2;
+    }
+
+    else if (response == "Connection closed") {
+#ifndef DATATRANSMISSION_CLIENT_GUI
+        std::cout << "Connection closing..." << std::endl;
+#else
+        content += "Connection closing...\n";
+#endif
+        log << "Connection closing..." << std::endl;
+        return 1;
+    }
+
+    else {
+#ifndef DATATRANSMISSION_CLIENT_GUI
+        std::cout << response << std::endl;
+#else
+        content += response;
+        content += "\n";
+#endif
+        log << response << std::endl;
+    }
+
+    return 0;
+}
+
+#ifdef DATATRANSMISSION_CLIENT_GUI
+std::string Client::getBuffer() {
+    return content;
+}
+
+std::string Client::getIP() {
+    return ip;
+}
+#endif

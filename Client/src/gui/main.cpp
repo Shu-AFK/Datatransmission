@@ -7,16 +7,14 @@
 #define _WIN32_WINNT 0x0600
 #endif
 
-#include "../../../Server/src/helper.h"
-#include "../client.h"
-
 #include "imgui.h"
 #include "backends/imgui_impl_dx11.h"
 #include "backends/imgui_impl_win32.h"
 
-#include <boost/process.hpp>
-#include <boost/asio.hpp>
 #include <iostream>
+#include <filesystem>
+#include <utility>
+#include <vector>
 
 #include <winsock2.h>
 #include <windows.h>
@@ -24,11 +22,10 @@
 #include <d3d11.h>
 #include <tchar.h>
 
-#include <utility>
-#include <vector>
-#include <memory>
+#define DATATRANSMISSION_CLIENT_GUI
+#include "../client.h"
 
-namespace bp = boost::process;
+#include "style.h"
 
 static ID3D11Device             *device = nullptr;
 static ID3D11DeviceContext      *context = nullptr;
@@ -43,72 +40,22 @@ void CreateRenderTarget();
 void CleanupRenderTarget();
 LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lparam);
 
-void imgui_theme();
-void set_font(ImGuiIO &io);
-void displayTextHeading(const std::string &str);
-void displayInputLine(const std::string &text, char *buffer, const std::string &id, size_t size, ImGuiInputTextFlags flags);
-void verticalSpacing(size_t n);
-
 void renderGUI(bool *done);
 
 bool checkInputs(char *ipv4, char *port, const char *username, const char *password);
 void connectToServer(char *ipv4, char *port, char *username, char *password);
 bool saveLogs();
 
-struct fonts {
-    ImFont *default_font;
-    ImFont *heading_font;
+struct Connection {
+    std::shared_ptr<Client> client;
+    bool isSelected = false;
+
+    explicit Connection(std::shared_ptr<Client> iclient) : client(std::move(iclient)){}
 };
 
-std::string ClientExe;
-
-struct connection {
-    // Pipes
-    bp::pipe in_pipe;
-    bp::pipe out_pipe;
-
-    // Streams
-    bp::ipstream out_stream;
-    bp::opstream in_stream;
-
-    bp::child child;
-
-    // Information
-    std::string ip;
-    std::string port;
-    bool connected;
-
-    explicit connection(std::string ip, std::string port, const std::string &username, const std::string &password)
-    : ip(std::move(ip)), port(std::move(port)) {
-        std::vector<std::string> arguments = {"-s", ip, "-p", port, "-u", username, "-w", password};
-
-        child = bp::child(ClientExe, bp::args(arguments), bp::std_in < in_pipe, bp::std_out > out_pipe);
-
-        // Streams, tied with the pipes
-        in_stream.pipe(in_pipe);
-        out_stream.pipe(out_pipe);
-
-        connected = false;
-    }
-};
-
-std::vector<connection> connections;
-
-fonts fonts = {nullptr};
+std::vector<Connection> connections;
 
 int main(int argc, char **argv) {
-    try {
-        if(auto p = find_path(std::filesystem::current_path(), "Client.exe")) {
-            ClientExe = (p.value() / "Client.exe").string();
-        } else {
-            std::cerr << "[E] Can't find Client.exe!" << std::endl;
-            exit(1);
-        }
-    } catch (const std::filesystem::filesystem_error &e) {
-        std::cerr << "[E] " << e.what() << std::endl;
-        exit(1);
-    }
-
     // Creates the application window
     WNDCLASSEXW wc = {
             sizeof(wc),
@@ -159,6 +106,11 @@ int main(int argc, char **argv) {
 
     // main loop
     bool done = false;
+
+    for(int i = 0; i < 3; i++) {
+        connectToServer("127.0.0.1", "27015", "Floyd", "password");
+    }
+
     while(!done) {
         MSG msg;
         while(::PeekMessage(&msg, nullptr, 0U, 0U, PM_REMOVE)) {
@@ -326,13 +278,14 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             return 0;
         default:
             break;
-            //assert("[E] Invalid message" && false);
     }
 
     return ::DefWindowProcW(hwnd, msg, wparam, lparam);
 }
 
 bool displayErrorText = false;
+
+static int selected = 0;
 
 void renderGUI(bool *done) {
     static bool show_about_window = false;
@@ -342,13 +295,13 @@ void renderGUI(bool *done) {
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
     ImGui::Begin("DT-Client", nullptr, ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_MenuBar);
 
-    ImGui::PushFont(fonts.default_font);
+    ImGui::PushFont(ifonts.default_font);
 
     // Menu Bar
     if(ImGui::BeginMenuBar()) {
         if(ImGui::BeginMenu("File")) {
-            if(ImGui::MenuItem("Save logs", "Ctrl+S")) { saveLogs(); }
-            if(ImGui::MenuItem("Close", "Ctrl+Q")) { *done = true; }
+            if(ImGui::MenuItem("Save logs")) { saveLogs(); }
+            if(ImGui::MenuItem("Close")) { *done = true; }
             ImGui::EndMenu();
         }
 
@@ -409,133 +362,29 @@ void renderGUI(bool *done) {
     ImGui::Separator();
     verticalSpacing(2);
 
+    // TODO: Fix correct selection
+    for(int i = 0; i < connections.size(); i++) {
+        if(i == selected) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_ButtonActive]);
+        } else {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_Button]);
+        }
+
+        if(ImGui::Button(connections[i].client->getIP().c_str())) {
+            selected = i;
+        }
+
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+    }
 
     ImGui::PopFont();
     ImGui::End();
 }
 
 bool saveLogs() {
+    // TODO: Needs to be finished
     return true;
-}
-
-void imgui_theme() {
-    ImVec4* colors = ImGui::GetStyle().Colors;
-    colors[ImGuiCol_Text]                   = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-    colors[ImGuiCol_TextDisabled]           = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
-    colors[ImGuiCol_WindowBg]               = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
-    colors[ImGuiCol_ChildBg]                = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-    colors[ImGuiCol_PopupBg]                = ImVec4(0.19f, 0.19f, 0.19f, 0.92f);
-    colors[ImGuiCol_Border]                 = ImVec4(0.19f, 0.19f, 0.19f, 0.29f);
-    colors[ImGuiCol_BorderShadow]           = ImVec4(0.00f, 0.00f, 0.00f, 0.24f);
-    colors[ImGuiCol_FrameBg]                = ImVec4(0.05f, 0.05f, 0.05f, 0.54f);
-    colors[ImGuiCol_FrameBgHovered]         = ImVec4(0.19f, 0.19f, 0.19f, 0.54f);
-    colors[ImGuiCol_FrameBgActive]          = ImVec4(0.20f, 0.22f, 0.23f, 1.00f);
-    colors[ImGuiCol_TitleBg]                = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
-    colors[ImGuiCol_TitleBgActive]          = ImVec4(0.06f, 0.06f, 0.06f, 1.00f);
-    colors[ImGuiCol_TitleBgCollapsed]       = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
-    colors[ImGuiCol_MenuBarBg]              = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
-    colors[ImGuiCol_ScrollbarBg]            = ImVec4(0.05f, 0.05f, 0.05f, 0.54f);
-    colors[ImGuiCol_ScrollbarGrab]          = ImVec4(0.34f, 0.34f, 0.34f, 0.54f);
-    colors[ImGuiCol_ScrollbarGrabHovered]   = ImVec4(0.40f, 0.40f, 0.40f, 0.54f);
-    colors[ImGuiCol_ScrollbarGrabActive]    = ImVec4(0.56f, 0.56f, 0.56f, 0.54f);
-    colors[ImGuiCol_CheckMark]              = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
-    colors[ImGuiCol_SliderGrab]             = ImVec4(0.34f, 0.34f, 0.34f, 0.54f);
-    colors[ImGuiCol_SliderGrabActive]       = ImVec4(0.56f, 0.56f, 0.56f, 0.54f);
-    colors[ImGuiCol_Button]                 = ImVec4(0.05f, 0.05f, 0.05f, 0.54f);
-    colors[ImGuiCol_ButtonHovered]          = ImVec4(0.19f, 0.19f, 0.19f, 0.54f);
-    colors[ImGuiCol_ButtonActive]           = ImVec4(0.20f, 0.22f, 0.23f, 1.00f);
-    colors[ImGuiCol_Header]                 = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
-    colors[ImGuiCol_HeaderHovered]          = ImVec4(0.00f, 0.00f, 0.00f, 0.36f);
-    colors[ImGuiCol_HeaderActive]           = ImVec4(0.20f, 0.22f, 0.23f, 0.33f);
-    colors[ImGuiCol_Separator]              = ImVec4(0.28f, 0.28f, 0.28f, 0.29f);
-    colors[ImGuiCol_SeparatorHovered]       = ImVec4(0.44f, 0.44f, 0.44f, 0.29f);
-    colors[ImGuiCol_SeparatorActive]        = ImVec4(0.40f, 0.44f, 0.47f, 1.00f);
-    colors[ImGuiCol_ResizeGrip]             = ImVec4(0.28f, 0.28f, 0.28f, 0.29f);
-    colors[ImGuiCol_ResizeGripHovered]      = ImVec4(0.44f, 0.44f, 0.44f, 0.29f);
-    colors[ImGuiCol_ResizeGripActive]       = ImVec4(0.40f, 0.44f, 0.47f, 1.00f);
-    colors[ImGuiCol_Tab]                    = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
-    colors[ImGuiCol_TabHovered]             = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
-    colors[ImGuiCol_TabActive]              = ImVec4(0.20f, 0.20f, 0.20f, 0.36f);
-    colors[ImGuiCol_TabUnfocused]           = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
-    colors[ImGuiCol_TabUnfocusedActive]     = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
-    colors[ImGuiCol_PlotLines]              = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
-    colors[ImGuiCol_PlotLinesHovered]       = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
-    colors[ImGuiCol_PlotHistogram]          = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
-    colors[ImGuiCol_PlotHistogramHovered]   = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
-    colors[ImGuiCol_TableHeaderBg]          = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
-    colors[ImGuiCol_TableBorderStrong]      = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
-    colors[ImGuiCol_TableBorderLight]       = ImVec4(0.28f, 0.28f, 0.28f, 0.29f);
-    colors[ImGuiCol_TableRowBg]             = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-    colors[ImGuiCol_TableRowBgAlt]          = ImVec4(1.00f, 1.00f, 1.00f, 0.06f);
-    colors[ImGuiCol_TextSelectedBg]         = ImVec4(0.20f, 0.22f, 0.23f, 1.00f);
-    colors[ImGuiCol_DragDropTarget]         = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
-    colors[ImGuiCol_NavHighlight]           = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
-    colors[ImGuiCol_NavWindowingHighlight]  = ImVec4(1.00f, 0.00f, 0.00f, 0.70f);
-    colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(1.00f, 0.00f, 0.00f, 0.20f);
-    colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(1.00f, 0.00f, 0.00f, 0.35f);
-
-    ImGuiStyle& style = ImGui::GetStyle();
-    style.WindowPadding                     = ImVec2(8.00f, 8.00f);
-    style.FramePadding                      = ImVec2(5.00f, 2.00f);
-    style.CellPadding                       = ImVec2(6.00f, 6.00f);
-    style.ItemSpacing                       = ImVec2(6.00f, 6.00f);
-    style.ItemInnerSpacing                  = ImVec2(6.00f, 6.00f);
-    style.TouchExtraPadding                 = ImVec2(0.00f, 0.00f);
-    style.IndentSpacing                     = 25;
-    style.ScrollbarSize                     = 15;
-    style.GrabMinSize                       = 10;
-    style.WindowBorderSize                  = 1;
-    style.ChildBorderSize                   = 1;
-    style.PopupBorderSize                   = 1;
-    style.FrameBorderSize                   = 1;
-    style.TabBorderSize                     = 1;
-    style.WindowRounding                    = 7;
-    style.ChildRounding                     = 4;
-    style.FrameRounding                     = 3;
-    style.PopupRounding                     = 4;
-    style.ScrollbarRounding                 = 9;
-    style.GrabRounding                      = 3;
-    style.LogSliderDeadzone                 = 4;
-    style.TabRounding                       = 4;
-}
-
-void set_font(ImGuiIO &io) {
-    ImFont *defaultFont;
-    ImFont *headingFont;
-
-    if(auto p = find_path(std::filesystem::current_path(), "assets")) {
-        std::string font_path = (p.value() / "fonts/JetBrainsMono-Medium.ttf").string();
-        defaultFont = io.Fonts->AddFontFromFileTTF(font_path.c_str(), 16.0f);
-        headingFont = io.Fonts->AddFontFromFileTTF(font_path.c_str(), 24.0f);
-    } else {
-        std::cout << "[E] Can't find font.. using default font" << std::endl;
-        ImFontConfig config16;
-        config16.SizePixels = 16;
-        defaultFont = io.Fonts->AddFontDefault(&config16);
-
-        ImFontConfig config24;
-        config24.SizePixels = 24;
-        headingFont = io.Fonts->AddFontDefault(&config24);
-    }
-
-    fonts.default_font = defaultFont;
-    fonts.heading_font = headingFont;
-}
-
-void displayTextHeading(const std::string &str) {
-    ImGui::PopFont();
-    ImGui::PushFont(fonts.heading_font);
-    ImGui::Text(str.c_str());
-    ImGui::PopFont();
-    ImGui::PushFont(fonts.default_font);
-}
-
-void displayInputLine(const std::string &text, char *buffer, const std::string &id, size_t size, ImGuiInputTextFlags flags) {
-    ImGui::Text(text.c_str());
-    ImGui::SameLine();
-    ImGui::PushItemWidth(ImGui::GetWindowWidth() / 3);
-    ImGui::InputText(id.c_str(), buffer, size, flags);
-    ImGui::PopItemWidth();
 }
 
 bool isValidPort(const char *port) {
@@ -557,14 +406,7 @@ bool checkInputs(char *ipv4, char *port, const char *username, const char *passw
 }
 
 void connectToServer(char *ipv4, char *port, char *username, char *password) {
-    connection conn(ipv4, port, username, password);
-
-    //connection conn = {.client = client, .ip = ipv4, .port = port, .connected = true};
-    //connections.push_back(conn);
-}
-
-void verticalSpacing(size_t n) {
-    for (size_t i = 0; i < n; i++) {
-        ImGui::Spacing();
-    }
+    auto newClient = std::make_shared<Client>(ipv4, port, username, password);
+    Connection conn(newClient);
+    connections.push_back(conn);
 }
