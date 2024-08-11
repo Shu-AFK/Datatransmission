@@ -116,6 +116,7 @@ public:
 #ifdef DATATRANSMISSION_CLIENT_GUI
     std::string getBuffer();
     std::string getIP();
+    static std::string insertTabAfterNewline(const std::string &input);
 #endif
 };
 

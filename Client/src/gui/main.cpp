@@ -1,5 +1,6 @@
-// TODO: Next to form display a list of all connected clients. With a double click switch the chat to that client
 // TODO: Save and load states(All previous shells and connections)
+// TODO: Display errors red
+// TODO: Stack to go back to previous command
 
 #define IMGUI_API
 
@@ -28,6 +29,8 @@
 
 #include "style.h"
 
+#define MAX_TERMINAL_INPUT 5000
+
 static ID3D11Device             *device = nullptr;
 static ID3D11DeviceContext      *context = nullptr;
 static IDXGISwapChain           *SwapChain = nullptr;
@@ -46,8 +49,8 @@ void renderGUI(bool *done);
 std::string getButtonSelectionName(int connPos);
 
 bool checkInputs(char *ipv4, char *port, const char *username, const char *password);
-void connectToServer(char *ipv4, char *port, char *username, char *password);
-void disconnectFromServer();
+std::string connectToServer(char *ipv4, char *port, char *username, char *password);
+void disconnectFromServer(int iselected);
 bool saveLogs();
 
 enum SmartButtonState {
@@ -119,10 +122,6 @@ int main(int argc, char **argv) {
 
     // main loop
     bool done = false;
-
-    for(int i = 0; i < 3; i++) {
-        connectToServer("127.0.0.1", "27015", "Floyd", "password");
-    }
 
     while(!done) {
         MSG msg;
@@ -296,6 +295,9 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 }
 
 bool displayErrorText = false;
+bool displayConnectionErrorText = false;
+
+std::string connectionErrorString;
 
 static int selected = 0;
 
@@ -345,53 +347,98 @@ void renderGUI(bool *done) {
     verticalSpacing(2);
     displayTextHeading("DT-Client");
     verticalSpacing(2);
-    ImGui::Separator();
+    ImGui::SeparatorText("Connect");
     verticalSpacing(2);
 
-    static char ipv4[16];
-    displayInputLine("Server Address: ", ipv4, "###addr", IM_ARRAYSIZE(ipv4), 0);
-    static char port[6];
-    displayInputLine("Server Port:    ", port, "###port", IM_ARRAYSIZE(port), 0);
-    static char username[32];
-    displayInputLine("Username:       ", username, "###username", IM_ARRAYSIZE(username), 0);
-    static char password[32];
-    displayInputLine("Password:       ", password, "###pw", IM_ARRAYSIZE(password), ImGuiInputTextFlags_Password);
+    // Connecting to the server
+    {
+        static char ipv4[16];
+        displayInputLine("Server Address: ", ipv4, "###addr", IM_ARRAYSIZE(ipv4), 0);
+        static char port[6];
+        displayInputLine("Server Port:    ", port, "###port", IM_ARRAYSIZE(port), 0);
+        static char username[32];
+        displayInputLine("Username:       ", username, "###username", IM_ARRAYSIZE(username), 0);
+        static char password[32];
+        displayInputLine("Password:       ", password, "###pw", IM_ARRAYSIZE(password), ImGuiInputTextFlags_Password);
 
-    if(ImGui::Button("Connect")) {
-        if(!checkInputs(ipv4, port, username, password)) {
-            displayErrorText = true;
-        } else {
-            displayErrorText = false;
-            connectToServer(ipv4, port, username, password);
-        }
-    }
-
-    if(displayErrorText) {
-        ImGui::SameLine();
-        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "[E] Input error");
-    }
-    verticalSpacing(2);
-    ImGui::Separator();
-    verticalSpacing(2);
-
-    for(int i = 0; i < connections.size(); i++) {
-        ImGui::PushStyleColor(ImGuiCol_Button, connections[i].col);
-
-        auto state = SmartButton(connections[i].buttonName.c_str());
-        if(state == SmartButtonState::Pressed) {
-            connections[i].col = buttonActiveCol;
-            for(int j = 0; j < connections.size(); j++) {
-                if(i != j) {
-                    connections[j].col = buttonNotActiveCol;
+        if(ImGui::Button("Connect")) {
+            if(!checkInputs(ipv4, port, username, password)) {
+                displayErrorText = true;
+            } else {
+                displayErrorText = false;
+                connectionErrorString = connectToServer(ipv4, port, username, password);
+                if(!connectionErrorString.empty()) {
+                    displayConnectionErrorText = true;
                 }
             }
-            selected = i;
         }
 
-        ImGui::PopStyleColor();
-
-        if(i != connections.size() - 1)
+        if(displayErrorText) {
             ImGui::SameLine();
+            ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "[E] Input error");
+        }
+        if(displayConnectionErrorText) {
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), std::format("[E] Connection error {}, try again", connectionErrorString).c_str());
+        }
+    }
+
+    verticalSpacing(2);
+    ImGui::SeparatorText("Communicate");
+    verticalSpacing(2);
+
+    // Connection selection buttons
+    {
+        for(int i = 0; i < connections.size(); i++) {
+            ImGui::PushStyleColor(ImGuiCol_Button, connections[i].col);
+
+            auto state = SmartButton(connections[i].buttonName.c_str());
+            if(state == SmartButtonState::Pressed) {
+                connections[i].col = buttonActiveCol;
+                for(int j = 0; j < connections.size(); j++) {
+                    if(i != j) {
+                        connections[j].col = buttonNotActiveCol;
+                    }
+                }
+                selected = i;
+            }
+
+            ImGui::PopStyleColor();
+
+            if(i != connections.size() - 1)
+                ImGui::SameLine();
+        }
+    }
+
+    // Text display of terminal
+    {
+        ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
+        ImGui::BeginChild("Terminal", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y * 0.7f), ImGuiChildFlags_None, window_flags);
+        ImGui::Text(connections[selected].client->getBuffer().c_str());
+        ImGui::EndChild();
+    }
+
+    // Terminal text input
+    {
+        static char command[MAX_TERMINAL_INPUT];
+        ImGui::Text("shell $");
+        ImGui::SameLine();
+        ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.65f);
+        ImGui::InputText("###terminalInput", command, IM_ARRAYSIZE(command), 0);
+        ImGui::PopItemWidth();
+
+        ImGui::SameLine();
+        if(ImGui::Button("Send")) {
+            connections[selected].client->sendCommand(command);
+            command[0] = '\0';
+
+            // TODO: Scroll to bottom
+        }
+
+        ImGui::SameLine();
+        if(ImGui::Button("Disconnect")) {
+            disconnectFromServer(selected);
+        }
     }
 
     ImGui::PopFont();
@@ -421,16 +468,27 @@ bool checkInputs(char *ipv4, char *port, const char *username, const char *passw
     return isValidIpv4(ipv4) && isValidPort(port) && username[0] != '\0' && password[0] != '\0';
 }
 
-void connectToServer(char *ipv4, char *port, char *username, char *password) {
-    auto newClient = std::make_shared<Client>(ipv4, port, username, password);
-    Connection conn(newClient);
-    connections.push_back(conn);
-    int pos = (int) connections.size() - 1;
-    connections[pos].buttonName = getButtonSelectionName(pos);
+std::string connectToServer(char *ipv4, char *port, char *username, char *password) {
+    try {
+        auto newClient = std::make_shared<Client>(ipv4, port, username, password);
+        Connection conn(newClient);
+        connections.push_back(conn);
+
+        int pos = (int) connections.size() - 1;
+        connections[pos].buttonName = getButtonSelectionName(pos);
+
+        if(pos == selected) {
+            connections[pos].col = buttonActiveCol;
+        }
+    } catch (const std::runtime_error &e) {
+        return e.what();
+    }
+
+    return "";
 }
 
 // TODO: Finish and redo all connection names
-void disconnectFromServer() {
+void disconnectFromServer(int iselected) {
 
 }
 
@@ -446,6 +504,5 @@ static SmartButtonState SmartButton(const char* label) {
 
 std::string getButtonSelectionName(int connPos) {
     std::string name = std::format("{}##{}", connections[connPos].client->getIP(), connPos);
-    //std::string name = std::to_string(connPos);
     return name;
 }

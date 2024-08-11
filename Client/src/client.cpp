@@ -1,3 +1,5 @@
+// TODO: Fix \t in front of "shell $" for GUI
+
 #include <format>
 #include "client.h"
 #include <lz4.h>
@@ -330,6 +332,9 @@ void Client::closeConnection() {
  * -2 = error but continue
  */
 int Client::sendCommand(std::string command) {
+#ifdef DATATRANSMISSION_CLIENT_GUI
+    content += std::format("shell ${}\n\t", command);
+#endif
     bool isCopyFrom = false;
 
     if(command.empty())
@@ -353,8 +358,7 @@ int Client::sendCommand(std::string command) {
 #ifndef DATATRANSMISSION_CLIENT_GUI
         std::cerr << errorMessage << std::endl;
 #else
-        content += errorMessage;
-        content += "\n";
+        content += std::format("{}\n", errorMessage);
 #endif
         return -2;
     }
@@ -368,8 +372,7 @@ int Client::sendCommand(std::string command) {
 #ifndef DATATRANSMISSION_CLIENT_GUI
             std::cerr << errorMessage << std::endl;
 #else
-            content += errorMessage;
-            content += "\n";
+            content += std::format("{}\n", errorMessage);
 #endif
             log << errorMessage << std::endl;
             return -2;
@@ -421,8 +424,7 @@ int Client::sendCommand(std::string command) {
 #ifndef DATATRANSMISSION_CLIENT_GUI
             std::cerr << errorMessage << std::endl;
 #else
-            content += errorMessage;
-            content += "\n";
+            content += std::format("{}\n", errorMessage);
 #endif
             log << errorMessage << std::endl;
             return -2;
@@ -437,8 +439,7 @@ int Client::sendCommand(std::string command) {
 #ifndef DATATRANSMISSION_CLIENT_GUI
         std::cerr << errorMessage << std::endl;
 #else
-        content += errorMessage;
-        content += "\n";
+        content += std::format("{}\n", errorMessage);
 #endif
         return -2;
     }
@@ -457,8 +458,7 @@ int Client::sendCommand(std::string command) {
 #ifndef DATATRANSMISSION_CLIENT_GUI
         std::cout << response << std::endl;
 #else
-        content += response;
-        content += "\n";
+        content += std::format("{}\n", insertTabAfterNewline(response));
 #endif
         log << response << std::endl;
     }
@@ -473,5 +473,15 @@ std::string Client::getBuffer() {
 
 std::string Client::getIP() {
     return ip;
+}
+
+std::string Client::insertTabAfterNewline(const std::string &input) {
+    std::string result = input;
+    std::string::size_type pos = 0;
+    while ((pos = result.find('\n', pos)) != std::string::npos) {
+        result.insert(pos + 1, "\t");
+        pos += 2;
+    }
+    return result;
 }
 #endif
