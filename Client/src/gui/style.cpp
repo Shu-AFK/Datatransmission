@@ -4,8 +4,11 @@
 
 fonts ifonts = {nullptr, nullptr};
 
-std::optional<std::filesystem::path> find_path(const std::string& target_directory) {
-    std::filesystem::path start_path = std::filesystem::absolute(start_path);
+ImVec4 buttonActiveCol;
+ImVec4 buttonNotActiveCol;
+
+std::optional<std::filesystem::path> find_path(std::filesystem::path start_path, const std::string& target_directory) {
+    start_path = std::filesystem::absolute(start_path);
 
     while (start_path != start_path.root_path()) {
         std::filesystem::path append_path = start_path / target_directory;
@@ -107,13 +110,16 @@ void imgui_theme() {
     style.GrabRounding                      = 3;
     style.LogSliderDeadzone                 = 4;
     style.TabRounding                       = 4;
+
+    buttonActiveCol = ImGui::GetStyle().Colors[ImGuiCol_ButtonActive];
+    buttonNotActiveCol = ImGui::GetStyle().Colors[ImGuiCol_Button];
 }
 
 void set_font(ImGuiIO &io) {
     ImFont *defaultFont;
     ImFont *headingFont;
 
-    if(auto p = find_path("assets")) {
+    if(auto p = find_path(std::filesystem::current_path(), "assets")) {
         std::string font_path = (p.value() / "fonts/JetBrainsMono-Medium.ttf").string();
         defaultFont = io.Fonts->AddFontFromFileTTF(font_path.c_str(), 16.0f);
         headingFont = io.Fonts->AddFontFromFileTTF(font_path.c_str(), 24.0f);

@@ -12,6 +12,9 @@ struct fonts {
     ImFont *heading_font;
 };
 
+extern ImVec4 buttonActiveCol;
+extern ImVec4 buttonNotActiveCol;
+
 extern fonts ifonts;
 
 std::optional<std::filesystem::path> find_path(const std::string& target_directory);

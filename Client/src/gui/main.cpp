@@ -1,4 +1,5 @@
 // TODO: Next to form display a list of all connected clients. With a double click switch the chat to that client
+// TODO: Save and load states(All previous shells and connections)
 
 #define IMGUI_API
 
@@ -11,10 +12,10 @@
 #include "backends/imgui_impl_dx11.h"
 #include "backends/imgui_impl_win32.h"
 
-#include <iostream>
 #include <filesystem>
 #include <utility>
 #include <vector>
+#include <format>
 
 #include <winsock2.h>
 #include <windows.h>
@@ -42,15 +43,28 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lparam);
 
 void renderGUI(bool *done);
 
+std::string getButtonSelectionName(int connPos);
+
 bool checkInputs(char *ipv4, char *port, const char *username, const char *password);
 void connectToServer(char *ipv4, char *port, char *username, char *password);
+void disconnectFromServer();
 bool saveLogs();
+
+enum SmartButtonState {
+    None = 0,
+    Hovered,
+    Pressed,
+    Released,
+};
+
+static SmartButtonState SmartButton(const char* label);
 
 struct Connection {
     std::shared_ptr<Client> client;
-    bool isSelected = false;
+    std::string buttonName;
+    ImVec4 col;
 
-    explicit Connection(std::shared_ptr<Client> iclient) : client(std::move(iclient)){}
+    explicit Connection(std::shared_ptr<Client> iclient) : client(std::move(iclient)), col(buttonNotActiveCol){}
 };
 
 std::vector<Connection> connections;
@@ -101,7 +115,6 @@ int main(int argc, char **argv) {
     imgui_theme();
     set_font(io);
 
-    bool show_window = true;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
     // main loop
@@ -144,8 +157,7 @@ int main(int argc, char **argv) {
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        if(show_window)
-            renderGUI(&done);
+        renderGUI(&done);
 
         // Rendering
         ImGui::Render();
@@ -362,20 +374,24 @@ void renderGUI(bool *done) {
     ImGui::Separator();
     verticalSpacing(2);
 
-    // TODO: Fix correct selection
     for(int i = 0; i < connections.size(); i++) {
-        if(i == selected) {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_ButtonActive]);
-        } else {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[ImGuiCol_Button]);
-        }
+        ImGui::PushStyleColor(ImGuiCol_Button, connections[i].col);
 
-        if(ImGui::Button(connections[i].client->getIP().c_str())) {
+        auto state = SmartButton(connections[i].buttonName.c_str());
+        if(state == SmartButtonState::Pressed) {
+            connections[i].col = buttonActiveCol;
+            for(int j = 0; j < connections.size(); j++) {
+                if(i != j) {
+                    connections[j].col = buttonNotActiveCol;
+                }
+            }
             selected = i;
         }
 
         ImGui::PopStyleColor();
-        ImGui::SameLine();
+
+        if(i != connections.size() - 1)
+            ImGui::SameLine();
     }
 
     ImGui::PopFont();
@@ -409,4 +425,27 @@ void connectToServer(char *ipv4, char *port, char *username, char *password) {
     auto newClient = std::make_shared<Client>(ipv4, port, username, password);
     Connection conn(newClient);
     connections.push_back(conn);
+    int pos = (int) connections.size() - 1;
+    connections[pos].buttonName = getButtonSelectionName(pos);
+}
+
+// TODO: Finish and redo all connection names
+void disconnectFromServer() {
+
+}
+
+static SmartButtonState SmartButton(const char* label) {
+    if(ImGui::Button(label)) return SmartButtonState::Pressed;
+    if(ImGui::IsItemActive() && !ImGui::IsItemHovered()) return SmartButtonState::Pressed;
+    if(ImGui::IsItemHovered() && ImGui::IsMouseClicked(0)) return SmartButtonState::Pressed;
+    if(ImGui::IsItemHovered()) return SmartButtonState::Hovered;
+    if(ImGui::IsItemDeactivated()) return SmartButtonState::Released;
+
+    return SmartButtonState::None;
+}
+
+std::string getButtonSelectionName(int connPos) {
+    std::string name = std::format("{}##{}", connections[connPos].client->getIP(), connPos);
+    //std::string name = std::to_string(connPos);
+    return name;
 }
