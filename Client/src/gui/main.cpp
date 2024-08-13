@@ -50,7 +50,7 @@ std::string getButtonSelectionName(int connPos);
 
 bool checkInputs(char *ipv4, char *port, const char *username, const char *password);
 std::string connectToServer(char *ipv4, char *port, char *username, char *password);
-void disconnectFromServer(int iselected);
+int disconnectFromServer(int &iselected);
 bool saveLogs();
 
 enum SmartButtonState {
@@ -410,34 +410,36 @@ void renderGUI(bool *done) {
         }
     }
 
-    // Text display of terminal
-    {
-        ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
-        ImGui::BeginChild("Terminal", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y * 0.7f), ImGuiChildFlags_None, window_flags);
-        ImGui::Text(connections[selected].client->getBuffer().c_str());
-        ImGui::EndChild();
-    }
-
-    // Terminal text input
-    {
-        static char command[MAX_TERMINAL_INPUT];
-        ImGui::Text("shell $");
-        ImGui::SameLine();
-        ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.65f);
-        ImGui::InputText("###terminalInput", command, IM_ARRAYSIZE(command), 0);
-        ImGui::PopItemWidth();
-
-        ImGui::SameLine();
-        if(ImGui::Button("Send")) {
-            connections[selected].client->sendCommand(command);
-            command[0] = '\0';
-
-            // TODO: Scroll to bottom
+    if(!connections.empty() && selected >= 0 && selected < connections.size()) {
+        // Text display of terminal
+        {
+            ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
+            ImGui::BeginChild("Terminal", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y * 0.7f), ImGuiChildFlags_None, window_flags);
+            ImGui::Text(connections[selected].client->getBuffer().c_str());
+            ImGui::EndChild();
         }
 
-        ImGui::SameLine();
-        if(ImGui::Button("Disconnect")) {
-            disconnectFromServer(selected);
+        // Terminal text input
+        {
+            static char command[MAX_TERMINAL_INPUT];
+            ImGui::Text("shell $");
+            ImGui::SameLine();
+            ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.65f);
+            ImGui::InputText("###terminalInput", command, IM_ARRAYSIZE(command), 0);
+            ImGui::PopItemWidth();
+
+            ImGui::SameLine();
+            if(ImGui::Button("Send")) {
+                connections[selected].client->sendCommand(command);
+                command[0] = '\0';
+
+                // TODO: Scroll to bottom
+            }
+
+            ImGui::SameLine();
+            if(ImGui::Button("Disconnect")) {
+                disconnectFromServer(selected);
+            }
         }
     }
 
@@ -488,8 +490,18 @@ std::string connectToServer(char *ipv4, char *port, char *username, char *passwo
 }
 
 // TODO: Finish and redo all connection names
-void disconnectFromServer(int iselected) {
+int disconnectFromServer(int &iselected) {
+    if (iselected < 0 || iselected >= connections.size()) {
+        return -1;
+    }
 
+    connections[iselected].client->closeConnection();
+    connections.erase(connections.begin() + iselected);
+
+    if(iselected != 0) {
+        iselected--;
+    }
+    return 0;
 }
 
 static SmartButtonState SmartButton(const char* label) {

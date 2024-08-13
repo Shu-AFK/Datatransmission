@@ -42,6 +42,10 @@
 #ifndef DATATRANSMISSION_SERVER_H
 #define DATATRANSMISSION_SERVER_H
 
+#if !(defined(WIN32)) && !defined(WIN64)
+#   error Only windows is supported.
+#endif
+
 #define WIN32_LEAN_AND_MEAN
 
 #ifndef UNICODE
@@ -231,10 +235,10 @@ public:
      * @throws std::runtime_error if failed to open the settings file
      */
     ~Server() { // Destructor will clean up all the resources correctly
-        closesocket(ClientSocket);
-        WSACleanup();
         freeaddrinfo(result);
         log.close();
+        closesocket(ClientSocket);
+        WSACleanup();
 
         settings.open(settingsPath, std::ios::out);
         if (!settings.is_open())

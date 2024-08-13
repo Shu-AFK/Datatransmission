@@ -1,5 +1,3 @@
-// TODO: Fix \t in front of "shell $" for GUI
-
 #include <format>
 #include "client.h"
 #include <lz4.h>
@@ -62,11 +60,6 @@ void Client::run() {
             continue;
     }
 
-    iResult = shutdown(ConnectSocket, SD_SEND);
-    if (iResult == SOCKET_ERROR) {
-        printf("shutdown failed with error: %d\n", WSAGetLastError());
-        throw std::runtime_error(std::format("shutdown failed with error: {}", WSAGetLastError()));
-    }
     closeConnection();
 }
 
@@ -321,9 +314,15 @@ std::string Client::recvData(SOCKET clientSocket, std::string cmd) {
 
 void Client::closeConnection() {
     std::cout << "Closing connection..." << std::endl;
+    iResult = shutdown(ConnectSocket, SD_SEND);
+    if (iResult == SOCKET_ERROR) {
+        printf("shutdown failed with error: %d\n", WSAGetLastError());
+        throw std::runtime_error(std::format("shutdown failed with error: {}", WSAGetLastError()));
+    }
     log.close();
     closesocket(ConnectSocket);
     WSACleanup();
+    shutdownHasBeenCalled = true;
 }
 
 /*
@@ -467,7 +466,33 @@ int Client::sendCommand(std::string command) {
 }
 
 #ifdef DATATRANSMISSION_CLIENT_GUI
+void checkIfCorrectBuffer(std::string &buffer) {
+    std::string target = "shell $";
+    std::string replacement = "\nshell $";
+
+    size_t pos = 0;
+
+    // While there are instances of "shell $" in the string
+    while ((pos = buffer.find(target, pos)) != std::string::npos) {
+        // Remove all '\t', '\n', '\r' characters before "shell $"
+        size_t startPosition = pos;
+        while (startPosition-- > 0 && (buffer[startPosition] == '\t' || buffer[startPosition] == '\n' || buffer[startPosition] == '\r')) {
+            buffer.erase(startPosition, 1);
+            pos--;
+        }
+
+        // Inserts a '\n' in front of the target if there isn't one there
+        if (pos == 0 || buffer[pos - 1] != '\n') {
+            buffer.insert(pos, "\n");
+            pos += replacement.size(); // We've added the replacement, so we need to navigate past it
+        } else {
+            pos += target.size(); // There was already a '\n', so we navigate past the original target
+        }
+    }
+}
+
 std::string Client::getBuffer() {
+    checkIfCorrectBuffer(content);
     return content;
 }
 

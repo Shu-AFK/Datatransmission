@@ -35,6 +35,10 @@
 #ifndef DATATRANSMISSION_CLIENT_H
 #define DATATRANSMISSION_CLIENT_H
 
+#if !(defined(WIN32)) && !defined(WIN64)
+#   error Only windows is supported.
+#endif
+
 #define WIN32_LEAN_AND_MEAN
 
 #include <windows.h>
@@ -66,6 +70,7 @@ private:
     const static int recvbuflen = DEFAULT_BUFLEN;
     std::string ip, port, username, password;
     std::string None;
+    bool shutdownHasBeenCalled = false;
 
     // For GUI use
 #ifdef DATATRANSMISSION_CLIENT_GUI
@@ -103,10 +108,9 @@ public:
     }
 
     ~Client() {
-        // cleanup
-        log.close();
-        closesocket(ConnectSocket);
-        WSACleanup();
+        if(!shutdownHasBeenCalled) {
+            closeConnection();
+        }
     }
 
     void run();
