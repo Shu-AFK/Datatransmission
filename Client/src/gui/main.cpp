@@ -28,8 +28,7 @@
 #include "../client.h"
 
 #include "style.h"
-
-#define MAX_TERMINAL_INPUT 5000
+#include "config.h"
 
 static ID3D11Device             *device = nullptr;
 static ID3D11DeviceContext      *context = nullptr;
@@ -66,7 +65,7 @@ static SmartButtonState SmartButton(const char* label);
 
 struct Connection {
     std::shared_ptr<Client> client;
-    std::string buttonName;
+    char buttonName[MAX_CONNECTION_BUTTON_LENGTH];
     ImVec4 col;
 
     explicit Connection(std::shared_ptr<Client> iclient) : client(std::move(iclient)), col(buttonNotActiveCol){}
@@ -298,6 +297,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
 bool displayErrorText = false;
 bool displayConnectionErrorText = false;
+bool displayRenameButtonField = false;
 
 std::string connectionErrorString;
 
@@ -354,10 +354,10 @@ void renderGUI(bool *done) {
 
     // Connecting to the server
     {
-        static char ipv4[16];
-        static char port[6];
-        static char username[32];
-        static char password[32];
+        static char ipv4[MAX_LENGTH_IP];
+        static char port[MAX_LENGTH_PORT];
+        static char username[MAX_LENGTH_USERNAME];
+        static char password[MAX_LENGTH_PASSWORD];
 
         if(displayInputLine("Server Address: ", ipv4, "###addr", IM_ARRAYSIZE(ipv4), ImGuiInputTextFlags_EnterReturnsTrue)) {
             connectButtonHandler(ipv4, port, username, password);
@@ -395,7 +395,7 @@ void renderGUI(bool *done) {
         for(int i = 0; i < connections.size(); i++) {
             ImGui::PushStyleColor(ImGuiCol_Button, connections[i].col);
 
-            auto state = SmartButton(connections[i].buttonName.c_str());
+            auto state = SmartButton(connections[i].buttonName);
             if(state == SmartButtonState::Pressed) {
                 connections[i].col = buttonActiveCol;
                 for(int j = 0; j < connections.size(); j++) {
@@ -404,6 +404,35 @@ void renderGUI(bool *done) {
                     }
                 }
                 selected = i;
+            }
+            if(ImGui::BeginPopupContextItem()) {
+                if(ImGui::MenuItem("Change name")) {
+                    displayRenameButtonField = true;
+                }
+                if(ImGui::MenuItem("Disconnect")) {
+                    disconnectFromServer(selected);
+                }
+                ImGui::EndPopup();
+            }
+
+            if(displayRenameButtonField) {
+                ImGui::SetNextWindowSize(ImVec2(600, 400));
+                ImGui::Begin("Rename window", &displayRenameButtonField);
+                static char newName[MAX_CONNECTION_BUTTON_LENGTH];
+
+                ImGui::PushItemWidth(-FLT_MIN);
+                ImGui::InputText("###renameInput", newName, IM_ARRAYSIZE(newName));
+                ImGui::PopItemWidth();
+
+                if (ImGui::Button("Rename")) {
+                    strcpy(connections[selected].buttonName, newName);
+                    displayRenameButtonField = false;
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Cancel")) {
+                    displayRenameButtonField = false;
+                }
+                ImGui::End();
             }
 
             ImGui::PopStyleColor();
@@ -479,7 +508,7 @@ std::string connectToServer(char *ipv4, char *port, char *username, char *passwo
         connections.push_back(conn);
 
         int pos = (int) connections.size() - 1;
-        connections[pos].buttonName = getButtonSelectionName(pos);
+        strncpy(connections[pos].buttonName, getButtonSelectionName(pos).c_str(), MAX_CONNECTION_BUTTON_LENGTH);
 
         if(pos == selected) {
             connections[pos].col = buttonActiveCol;
