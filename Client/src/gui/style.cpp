@@ -146,12 +146,14 @@ void displayTextHeading(const std::string &str) {
     ImGui::PushFont(ifonts.default_font);
 }
 
-void displayInputLine(const std::string &text, char *buffer, const std::string &id, size_t size, ImGuiInputTextFlags flags) {
+bool displayInputLine(const std::string &text, char *buffer, const std::string &id, size_t size, ImGuiInputTextFlags flags) {
     ImGui::Text(text.c_str());
     ImGui::SameLine();
     ImGui::PushItemWidth(ImGui::GetWindowWidth() / 3);
-    ImGui::InputText(id.c_str(), buffer, size, flags);
+    bool returned = ImGui::InputText(id.c_str(), buffer, size, flags);
     ImGui::PopItemWidth();
+
+    return returned;
 }
 
 void verticalSpacing(size_t n) {

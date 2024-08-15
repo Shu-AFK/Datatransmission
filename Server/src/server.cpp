@@ -821,12 +821,13 @@ int Server::run() {
     //std::thread(stop_serv, std::ref(master)).detach();
 	
 	CreateThread(
-    NULL,                   // default security attributes
-    0,                      // use default stack size  
-    (LPTHREAD_START_ROUTINE)stop_serv,       // thread function name
-    (LPVOID)&master,          // argument to thread function 
-    0,                      // use default creation flags 
-    nullptr);   // returns the thread identifier
+        NULL,                   // default security attributes
+        0,                      // use default stack size
+        (LPTHREAD_START_ROUTINE)stop_serv,       // thread function name
+        (LPVOID)&master,          // argument to thread function
+        0,                      // use default creation flags
+        nullptr
+    );   // returns the thread identifier
 
     while (true)
     {
@@ -835,7 +836,7 @@ int Server::run() {
             if (STOP) break;
             std::cout << "select error: " << WSAGetLastError() << std::endl;
             log << "select error: " << WSAGetLastError() << std::endl;
-            return 1;
+            continue; // To not fail on error
         }
         else {
             if (STOP) break;
@@ -885,6 +886,7 @@ int Server::run() {
                             std::cout << "recv failed with error: " << WSAGetLastError() << std::endl;
                             log << "recv failed with error: " << WSAGetLastError() << std::endl; 
                             closesocket(read_fds.fd_array[i]);
+                            FD_CLR(read_fds.fd_array[i], &master);
                         }
                     }
                 }

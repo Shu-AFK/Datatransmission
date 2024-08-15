@@ -51,6 +51,8 @@ std::string getButtonSelectionName(int connPos);
 bool checkInputs(char *ipv4, char *port, const char *username, const char *password);
 std::string connectToServer(char *ipv4, char *port, char *username, char *password);
 int disconnectFromServer(int &iselected);
+void sendButtonHandler(int iSelected, char *command);
+void connectButtonHandler(char *ipv4, char *port, char *username, char *password);
 bool saveLogs();
 
 enum SmartButtonState {
@@ -353,24 +355,25 @@ void renderGUI(bool *done) {
     // Connecting to the server
     {
         static char ipv4[16];
-        displayInputLine("Server Address: ", ipv4, "###addr", IM_ARRAYSIZE(ipv4), 0);
         static char port[6];
-        displayInputLine("Server Port:    ", port, "###port", IM_ARRAYSIZE(port), 0);
         static char username[32];
-        displayInputLine("Username:       ", username, "###username", IM_ARRAYSIZE(username), 0);
         static char password[32];
-        displayInputLine("Password:       ", password, "###pw", IM_ARRAYSIZE(password), ImGuiInputTextFlags_Password);
+
+        if(displayInputLine("Server Address: ", ipv4, "###addr", IM_ARRAYSIZE(ipv4), ImGuiInputTextFlags_EnterReturnsTrue)) {
+            connectButtonHandler(ipv4, port, username, password);
+        }
+        if(displayInputLine("Server Port:    ", port, "###port", IM_ARRAYSIZE(port), ImGuiInputTextFlags_EnterReturnsTrue)) {
+            connectButtonHandler(ipv4, port, username, password);
+        }
+        if(displayInputLine("Username:       ", username, "###username", IM_ARRAYSIZE(username), ImGuiInputTextFlags_EnterReturnsTrue)) {
+            connectButtonHandler(ipv4, port, username, password);
+        }
+        if(displayInputLine("Password:       ", password, "###pw", IM_ARRAYSIZE(password), ImGuiInputTextFlags_Password | ImGuiInputTextFlags_EnterReturnsTrue)) {
+            connectButtonHandler(ipv4, port, username, password);
+        }
 
         if(ImGui::Button("Connect")) {
-            if(!checkInputs(ipv4, port, username, password)) {
-                displayErrorText = true;
-            } else {
-                displayErrorText = false;
-                connectionErrorString = connectToServer(ipv4, port, username, password);
-                if(!connectionErrorString.empty()) {
-                    displayConnectionErrorText = true;
-                }
-            }
+            connectButtonHandler(ipv4, port, username, password);
         }
 
         if(displayErrorText) {
@@ -425,15 +428,14 @@ void renderGUI(bool *done) {
             ImGui::Text("shell $");
             ImGui::SameLine();
             ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.65f);
-            ImGui::InputText("###terminalInput", command, IM_ARRAYSIZE(command), 0);
+            if(ImGui::InputText("###terminalInput", command, IM_ARRAYSIZE(command), ImGuiInputTextFlags_EnterReturnsTrue)) {
+                sendButtonHandler(selected, command);
+            }
             ImGui::PopItemWidth();
 
             ImGui::SameLine();
             if(ImGui::Button("Send")) {
-                connections[selected].client->sendCommand(command);
-                command[0] = '\0';
-
-                // TODO: Scroll to bottom
+                sendButtonHandler(selected, command);
             }
 
             ImGui::SameLine();
@@ -517,4 +519,28 @@ static SmartButtonState SmartButton(const char* label) {
 std::string getButtonSelectionName(int connPos) {
     std::string name = std::format("{}##{}", connections[connPos].client->getIP(), connPos);
     return name;
+}
+
+void sendButtonHandler(int iSelected, char *command) {
+    connections[iSelected].client->sendCommand(command);
+    command[0] = '\0';
+
+    // TODO: Scroll to bottom
+}
+
+void connectButtonHandler(char *ipv4, char *port, char *username, char *password) {
+    if(!checkInputs(ipv4, port, username, password)) {
+        displayErrorText = true;
+    } else {
+        displayErrorText = false;
+        connectionErrorString = connectToServer(ipv4, port, username, password);
+        if(!connectionErrorString.empty()) {
+            displayConnectionErrorText = true;
+        }
+    }
+
+    ipv4[0] = '\0';
+    port[0] = '\0';
+    username[0] = '\0';
+    password[0] = '\0';
 }
