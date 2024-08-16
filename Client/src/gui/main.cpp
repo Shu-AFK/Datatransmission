@@ -1,6 +1,7 @@
 // TODO: Save and load states(All previous shells and connections)
 // TODO: Display errors red
 // TODO: Stack to go back to previous command
+// TODO: Make stuff like auto scroll the bottom when sending command configurable in settings
 
 #define IMGUI_API
 
@@ -300,6 +301,7 @@ bool displayConnectionErrorText = false;
 bool displayRenameButtonField = false;
 
 bool scrollTerminalToTheBottom = false;
+bool setKeyboardFocusToCommandLine = false;
 
 std::string connectionErrorString;
 
@@ -464,6 +466,10 @@ void renderGUI(bool *done) {
             ImGui::SameLine();
             ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.65f);
             if(ImGui::InputText("###terminalInput", command, IM_ARRAYSIZE(command), ImGuiInputTextFlags_EnterReturnsTrue)) {
+                if(setKeyboardFocusToCommandLine) {
+                    ImGui::SetKeyboardFocusHere(-1);
+                    setKeyboardFocusToCommandLine = false;
+                }
                 sendButtonHandler(selected, command);
             }
             ImGui::PopItemWidth();
@@ -557,10 +563,16 @@ std::string getButtonSelectionName(int connPos) {
 }
 
 void sendButtonHandler(int iSelected, char *command) {
+    if(strcmp(command, "exit") == 0) {
+        disconnectFromServer(iSelected);
+        return;
+    }
+
     connections[iSelected].client->sendCommand(command);
     command[0] = '\0';
 
     scrollTerminalToTheBottom = true;
+    setKeyboardFocusToCommandLine = true;
 }
 
 void connectButtonHandler(char *ipv4, char *port, char *username, char *password) {

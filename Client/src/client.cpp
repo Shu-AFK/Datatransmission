@@ -313,7 +313,7 @@ std::string Client::recvData(SOCKET clientSocket, std::string cmd) {
 }
 
 void Client::closeConnection() {
-    std::cout << "Closing connection..." << std::endl;
+    std::cout << "Closing connection with " << ip << ":" << port << "..." << std::endl;
     iResult = shutdown(ConnectSocket, SD_SEND);
     if (iResult == SOCKET_ERROR) {
         printf("shutdown failed with error: %d\n", WSAGetLastError());
