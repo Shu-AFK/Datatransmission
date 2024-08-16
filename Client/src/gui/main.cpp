@@ -299,6 +299,8 @@ bool displayErrorText = false;
 bool displayConnectionErrorText = false;
 bool displayRenameButtonField = false;
 
+bool scrollTerminalToTheBottom = false;
+
 std::string connectionErrorString;
 
 static int selected = 0;
@@ -448,6 +450,10 @@ void renderGUI(bool *done) {
             ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
             ImGui::BeginChild("Terminal", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y * 0.7f), ImGuiChildFlags_None, window_flags);
             ImGui::Text(connections[selected].client->getBuffer().c_str());
+            if(scrollTerminalToTheBottom) {
+                ImGui::SetScrollHereY(1.0f);
+                scrollTerminalToTheBottom = false;
+            }
             ImGui::EndChild();
         }
 
@@ -554,7 +560,7 @@ void sendButtonHandler(int iSelected, char *command) {
     connections[iSelected].client->sendCommand(command);
     command[0] = '\0';
 
-    // TODO: Scroll to bottom
+    scrollTerminalToTheBottom = true;
 }
 
 void connectButtonHandler(char *ipv4, char *port, char *username, char *password) {
