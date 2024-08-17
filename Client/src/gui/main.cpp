@@ -69,12 +69,14 @@ struct Connection {
     char buttonName[MAX_CONNECTION_BUTTON_LENGTH];
     ImVec4 col;
 
-    explicit Connection(std::shared_ptr<Client> iclient) : client(std::move(iclient)), col(buttonNotActiveCol){}
+    explicit Connection(std::shared_ptr<Client> iclient) : client(std::move(iclient)), col(buttonNotActiveCol){
+        buttonName[0] = '\0';
+    }
 };
 
 std::vector<Connection> connections;
 
-int main(int argc, char **argv) {
+int main() {
     // Creates the application window
     WNDCLASSEXW wc = {
             sizeof(wc),
@@ -254,7 +256,7 @@ void CleanupDeviceD3D() {
 void CreateRenderTarget() {
     ID3D11Texture2D *pBackBuffer = nullptr;
     SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
-    device->CreateRenderTargetView(pBackBuffer, NULL, &mainRenderTargetView);
+    device->CreateRenderTargetView(pBackBuffer, nullptr, &mainRenderTargetView);
     pBackBuffer->Release();
 }
 
@@ -466,12 +468,13 @@ void renderGUI(bool *done) {
             ImGui::SameLine();
             ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.65f);
             if(ImGui::InputText("###terminalInput", command, IM_ARRAYSIZE(command), ImGuiInputTextFlags_EnterReturnsTrue)) {
+                sendButtonHandler(selected, command);
                 if(setKeyboardFocusToCommandLine) {
                     ImGui::SetKeyboardFocusHere(-1);
                     setKeyboardFocusToCommandLine = false;
                 }
-                sendButtonHandler(selected, command);
             }
+
             ImGui::PopItemWidth();
 
             ImGui::SameLine();
@@ -583,11 +586,13 @@ void connectButtonHandler(char *ipv4, char *port, char *username, char *password
         connectionErrorString = connectToServer(ipv4, port, username, password);
         if(!connectionErrorString.empty()) {
             displayConnectionErrorText = true;
+            return;
         }
-    }
 
-    ipv4[0] = '\0';
-    port[0] = '\0';
-    username[0] = '\0';
-    password[0] = '\0';
+        ipv4[0] = '\0';
+        port[0] = '\0';
+        username[0] = '\0';
+        password[0] = '\0';
+        displayConnectionErrorText = false;
+    }
 }
