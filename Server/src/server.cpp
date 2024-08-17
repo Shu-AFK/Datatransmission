@@ -816,16 +816,17 @@ int Server::run() {
 
     FD_SET(ListenSocket, &master);
 
-    //std::thread(stop_serv, std::ref(master)).detach();
-	
+    // std::thread(stop_serv, std::ref(master)).detach();
+
+    // returns the thread identifier
 	CreateThread(
-        NULL,                   // default security attributes
-        0,                      // use default stack size
-        (LPTHREAD_START_ROUTINE)stop_serv,       // thread function name
-        (LPVOID)&master,          // argument to thread function
-        0,                      // use default creation flags
+        NULL,                                       // default security attributes
+        0,                                          // use default stack size
+        (LPTHREAD_START_ROUTINE)stop_serv,          // thread function name
+        (LPVOID)&master,                            // argument to thread function
+        0,                                          // use default creation flags
         nullptr
-    );   // returns the thread identifier
+    );
 
     while (true)
     {
@@ -839,8 +840,8 @@ int Server::run() {
         else {
             if (STOP) break;
             for (int i = 0; i < read_fds.fd_count; ++i) {
-                if (FD_ISSET(read_fds.fd_array[i], &read_fds)) { // got smth to read from one of the sockets
-                    if (read_fds.fd_array[i] == ListenSocket) { // on listenSock, so trying to accept new client
+                if (FD_ISSET(read_fds.fd_array[i], &read_fds)) {    // got smth to read from one of the sockets
+                    if (read_fds.fd_array[i] == ListenSocket) {     // on listenSock, so trying to accept new client
                         newfd = accept(ListenSocket, NULL, NULL);
                         if (newfd == INVALID_SOCKET)
                         {
@@ -852,7 +853,9 @@ int Server::run() {
                             LastSock = newfd;
                         }
                     }
-                    else { // on client, so receiving data from client
+
+                    // on client, so receiving data from client
+                    else {
                         LastSock = read_fds.fd_array[i];
                         memset(recvbuf, 0, sizeof(recvbuf));
                         iResult = recv(read_fds.fd_array[i], recvbuf, recvbuflen, 0);
@@ -867,7 +870,7 @@ int Server::run() {
                             log << recvbuf << std::endl;
 
                             try {
-                                res = handleCommand(recvbuf);
+                                handleCommand(recvbuf);
                             }
                             catch (const std::runtime_error& e) {
                                 log << e.what() << std::endl;
