@@ -1,5 +1,3 @@
-// TODO: Make the server not crash when a single recv failed
-
 #include "server.h"
 #include <lz4.h>
 
@@ -841,7 +839,7 @@ int Server::run() {
         else {
             if (STOP) break;
             for (int i = 0; i < read_fds.fd_count; ++i) {
-                if (FD_ISSET(read_fds.fd_array[i], &read_fds)) { // got smth to read from one of socket
+                if (FD_ISSET(read_fds.fd_array[i], &read_fds)) { // got smth to read from one of the sockets
                     if (read_fds.fd_array[i] == ListenSocket) { // on listenSock, so trying to accept new client
                         newfd = accept(ListenSocket, NULL, NULL);
                         if (newfd == INVALID_SOCKET)
@@ -884,7 +882,9 @@ int Server::run() {
                         }
                         else {
                             std::cout << "recv failed with error: " << WSAGetLastError() << std::endl;
-                            log << "recv failed with error: " << WSAGetLastError() << std::endl; 
+                            log << "recv failed with error: " << WSAGetLastError() << std::endl;
+                            std::cout << "Connection with " << userMap[read_fds.fd_array[i]] << " has been closed" << std::endl;
+                            log << "Connection with " << userMap[read_fds.fd_array[i]] << " has been closed" << std::endl;
                             closesocket(read_fds.fd_array[i]);
                             FD_CLR(read_fds.fd_array[i], &master);
                         }
