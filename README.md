@@ -51,16 +51,17 @@ The -install flag is optional and indicates that the script should clone and bui
 
 ### 3.2 Extension Commands
 
-| Command          | Description                                           | Example Usage                |
-|------------------|-------------------------------------------------------|------------------------------|
-| `copy_to`        | Copies a file to the client's PC.                     | `copy_to file.txt`           |
-| `copy_from`      | Copies a file from the client's PC to the server.     | `copy_from file.txt`         |
-| `move_startup`   | Runs the Server executable on startup.                | `move_startup`               |
-| `remove_startup` | Cancels the `move_startup` command.                   | `remove_startup`             |
-| `check_startup`  | Checks whether the executable file starts on startup. | `check_startup`              |
-| `run`            | Runs executables and .bat scripts.                    | `run script.bat`             |
-| `add_user`       | Adds a user to the database                           | `add_user username password` |
-| `remove_user`    | Removes a user from the database                      | `remove_user username`       |
+| Command          | Description                                              | Example Usage                |
+|------------------|----------------------------------------------------------|------------------------------|
+| `copy_to`        | Copies a file to the client's PC.                        | `copy_to file.txt`           |
+| `copy_from`      | Copies a file from the client's PC to the server.        | `copy_from file.txt`         |
+| `get-processes`  | Retrieves all currently running processes on the server. | `get-processes`              |
+| `move_startup`   | Runs the Server executable on startup.                   | `move_startup`               |
+| `remove_startup` | Cancels the `move_startup` command.                      | `remove_startup`             |
+| `check_startup`  | Checks whether the executable file starts on startup.    | `check_startup`              |
+| `run`            | Runs executables and .bat scripts.                       | `run script.bat`             |
+| `add_user`       | Adds a user to the database                              | `add_user username password` |
+| `remove_user`    | Removes a user from the database                         | `remove_user username`       |
 
 ## 4. Usage
 

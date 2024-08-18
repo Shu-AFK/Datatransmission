@@ -1,3 +1,5 @@
+add_compile_definitions(PSAPI_VERSION=1)
+
 include_directories(${SQLITE_PATH})
 
 # Server CMake file
@@ -17,6 +19,7 @@ if(WIN32)
     target_link_libraries(Server PRIVATE Ws2_32)
     target_link_libraries(Server PRIVATE fwpuclnt) # fwpuclnt.lib for Winsock secure socket extensions
     target_link_libraries(Server PRIVATE ntdsapi) # ntdsapi.lib for DsMakeSpn function
+    target_link_libraries(Server PRIVATE Psapi)
 endif()
 
 # Include sqlite3
