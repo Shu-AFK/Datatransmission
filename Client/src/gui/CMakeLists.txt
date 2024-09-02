@@ -21,6 +21,10 @@ add_executable(Client_GUI
         main.cpp
         ${CMAKE_SOURCE_DIR}/Client/src/client.cpp
         style.cpp
+        state.cpp
+        structs.cpp
+        password.h
+        password.cpp
 )
 
 target_link_libraries(Client_GUI PRIVATE

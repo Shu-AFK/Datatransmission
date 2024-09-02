@@ -1919,3 +1919,107 @@ int Server::handleGetProcesses() {
 
     return 0;
 }
+
+/**
+     * @brief Destructor for the Server class.
+     *
+     * This destructor will clean up all the resources used by the Server object.
+     * It closes the client socket, cleans up the Winsock API, frees the address info result,
+     * closes the log file, updates the settings file, and closes the SQLite database.
+     *
+     * @throws std::runtime_error if failed to open the settings file
+     */
+Server::~Server() { // Destructor will clean up all the resources correctly
+    freeaddrinfo(result);
+    log.close();
+    closesocket(ClientSocket);
+    WSACleanup();
+
+    settings.open(settingsPath, std::ios::out);
+    if (!settings.is_open())
+        throw std::runtime_error("Failed to open settings file");
+
+    if (inStartup)
+        settings << "startup = true";
+    else
+        settings << "startup = false";
+
+    settings.close();
+    sqlite3_close(DB);
+}
+
+/**
+     * @brief Server constructor.
+     *
+     * This constructor initializes the Server class and sets up the server.
+     * It takes a string argument, `spec_port`, which specifies the port for the server to listen on.
+     *
+     * @param spec_port The port to listen on as a string.
+     * @throws std::runtime_error if an error occurs when initializing the server.
+     */
+Server::Server(const std::string& spec_port) {
+    if(sodium_init() < 0)
+        throw std::runtime_error("Could not init sodium");
+
+    settingsPath = "settings.txt";
+
+    log.open("log.txt");
+    if (!log)
+        throw std::runtime_error("Failed to open log file");
+
+    settings.open(settingsPath, std::ios::in);
+    if (!settings.is_open()) {
+        std::ofstream create_settings(settingsPath);
+        create_settings.close();
+    }
+
+    std::string line;
+    std::getline(settings, line);
+    if (line.empty()) {
+        settings.close();
+        settings.open(settingsPath, std::ios::out);
+        if (!settings.is_open())
+            throw std::runtime_error("Failed to open settings file");
+        settings << "startup = false";
+    }
+    else if (line == "startup = true")
+        inStartup = true;
+    else if (line == "startup = false")
+        inStartup = false;
+
+    settings.close();
+
+    int rc = sqlite3_open(db_name.c_str(), &DB);
+
+    if (rc) {
+        std::string message = std::format("Can't open database: {}", sqlite3_errmsg(DB));
+        throw std::runtime_error(message);
+    }
+
+    try {
+        if (dbIsEmpty())
+            initDB();
+    }
+    catch (const std::runtime_error& e) {
+        throw e;
+    }
+
+    // Add root user
+    if (addUser("root", "root") == -1)
+        throw std::runtime_error("unable to insert root user into database!");
+
+    ZeroMemory(&hints, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+    hints.ai_flags = AI_PASSIVE;
+
+    this->port = spec_port;
+
+    if (!setupPort())
+        throw std::runtime_error("Failed to init port");
+    if (!initServer())
+        throw std::runtime_error("Failed to start the server");
+
+    memset(recvbuf, 0, DEFAULT_BUFLEN);
+}

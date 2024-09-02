@@ -1,7 +1,8 @@
 # Client CMake file
 add_executable(Client src/main.cpp
         src/client.h
-        src/client.cpp)
+        src/client.cpp
+)
 
 # Link against the Winsock library
 if(WIN32)

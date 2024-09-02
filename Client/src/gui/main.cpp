@@ -25,11 +25,15 @@
 #include <d3d11.h>
 #include <tchar.h>
 
+#include <sodium.h>
+
 #define DATATRANSMISSION_CLIENT_GUI
 #include "../client.h"
 
 #include "style.h"
 #include "config.h"
+#include "structs.h"
+#include "state.h"
 
 static ID3D11Device             *device = nullptr;
 static ID3D11DeviceContext      *context = nullptr;
@@ -55,28 +59,15 @@ void sendButtonHandler(int iSelected, char *command);
 void connectButtonHandler(char *ipv4, char *port, char *username, char *password);
 bool saveLogs();
 
-enum SmartButtonState {
-    None = 0,
-    Hovered,
-    Pressed,
-    Released,
-};
-
 static SmartButtonState SmartButton(const char* label);
-
-struct Connection {
-    std::shared_ptr<Client> client;
-    char buttonName[MAX_CONNECTION_BUTTON_LENGTH];
-    ImVec4 col;
-
-    explicit Connection(std::shared_ptr<Client> iclient) : client(std::move(iclient)), col(buttonNotActiveCol){
-        buttonName[0] = '\0';
-    }
-};
 
 std::vector<Connection> connections;
 
 int main() {
+    if(sodium_init() < 0) {
+        return 1;
+    }
+
     // Creates the application window
     WNDCLASSEXW wc = {
             sizeof(wc),

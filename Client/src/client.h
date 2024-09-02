@@ -68,7 +68,6 @@ private:
     std::ofstream log;
     int iResult;
     const static int recvbuflen = DEFAULT_BUFLEN;
-    std::string ip, port, username, password;
     std::string None;
     bool shutdownHasBeenCalled = false;
 
@@ -80,6 +79,8 @@ private:
     static std::string getLogFilename();
 
 public:
+    std::string ip, port, username, password;
+
     Client(std::string ip, std::string port, std::string username, std::string password)
             : ip(ip), port(port), username(username), password(password) {
 
