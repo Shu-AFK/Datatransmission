@@ -15,7 +15,7 @@ set(IMGUI_SOURCES
 )
 
 add_library(imgui STATIC ${IMGUI_SOURCES})
-target_include_directories(imgui PUBLIC ${imgui_dir})
+target_include_directories(imgui PUBLIC ${imgui_dir} ${LIBSODIUM_INCLUDE_DIR})
 
 add_executable(Client_GUI
         main.cpp
@@ -34,4 +34,5 @@ target_link_libraries(Client_GUI PRIVATE
         d3dcompiler
         ws2_32
         ${LZ4_LIBRARY}
+        ${LIBSODIUM_LIBRARY}
 )
