@@ -2,8 +2,6 @@ file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS
         "${CMAKE_SOURCE_DIR}/tests/*.cc"
 )
 
-list(REMOVE_ITEM TEST_SOURCES "${CMAKE_SOURCE_DIR}/tests/test_main.cc")
-
 set(SOURCE_FILES
         ${CMAKE_SOURCE_DIR}/Client/src/gui/state.cpp
         ${CMAKE_SOURCE_DIR}/Client/src/gui/password.cpp
