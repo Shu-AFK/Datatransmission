@@ -1,8 +1,30 @@
-# Add the main.cc file
-add_executable(DatatransmissionTests main.cc)
+file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS
+        "${CMAKE_SOURCE_DIR}/tests/*.cc"
+)
 
-# Include the directory with catch.hpp
-target_include_directories(DatatransmissionTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/catch2)
+set(SOURCE_FILES
+        ${CMAKE_SOURCE_DIR}/Client/src/gui/state.cpp
+        ${CMAKE_SOURCE_DIR}/Client/src/gui/password.cpp
+        ${CMAKE_SOURCE_DIR}/Client/src/gui/structs.cpp
+        ${CMAKE_SOURCE_DIR}/Client/src/client.cpp
+)
 
-# The add_test command can replace catch_discover_tests
+include_directories(
+        ${LIBSODIUM_INCLUDE_DIR}
+        ${INCLUDE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/catch2
+        ${CMAKE_SOURCE_DIR}/Client
+        ${CMAKE_SOURCE_DIR}/Server
+        ${CMAKE_SOURCE_DIR}/Client/src/gui
+)
+
+add_executable(DatatransmissionTests ${TEST_SOURCES} ${SOURCE_FILES})
+
+target_link_libraries(DatatransmissionTests PUBLIC
+        ${LIBSODIUM_LIBRARY}
+        ${LZ4_LIBRARY}
+)
+
+enable_testing()
+
 add_test(NAME DatatransmissionTests COMMAND DatatransmissionTests)

@@ -25,6 +25,8 @@ add_executable(Client_GUI
         structs.cpp
         password.h
         password.cpp
+        save_load_file.h
+        save_load_file.cpp
 )
 
 target_link_libraries(Client_GUI PRIVATE

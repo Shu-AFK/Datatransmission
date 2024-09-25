@@ -32,6 +32,8 @@
 *  - run: The main loop for the client operation. Engages in command/response interactions with the server.
 */
 
+// TODO: Check if ip and port is valid before trying to connect
+
 #ifndef DATATRANSMISSION_CLIENT_H
 #define DATATRANSMISSION_CLIENT_H
 
@@ -81,30 +83,25 @@ private:
 public:
     std::string ip, port, username, password;
 
-    Client(std::string ip, std::string port, std::string username, std::string password)
-            : ip(ip), port(port), username(username), password(password) {
+    Client(std::string ip, std::string port, std::string username, std::string password, bool autoConnect = true)
+            : ip(std::move(ip)), port(std::move(port)), username(std::move(username)), password(std::move(password)) {
+        if(autoConnect) {
+            // Log before moving parameters
+            log.open(getLogFilename());
+            if (!log) {
+                throw std::runtime_error("Failed to open log file");
+            }
+            log << "IP: " << ip << " Port: " << port << " Username: " << username << std::endl;
 
-        // Log before moving parameters
-        log.open(getLogFilename());
-        if (!log) {
-            throw std::runtime_error("Failed to open log file");
-        }
-        log << "IP: " << ip << " Port: " << port << " Username: " << username << std::endl;
+            ConnectSocket = INVALID_SOCKET;
 
-        // Now move parameters
-        this->ip = std::move(ip);
-        this->port = std::move(port);
-        this->username = std::move(username);
-        this->password = std::move(password);
-
-        ConnectSocket = INVALID_SOCKET;
-
-        try {
-            initWinsock();
-            initServerConnection(this->ip.c_str());
-        } catch (const std::runtime_error &e) {
-            log << e.what() << std::endl;
-            throw e;
+            try {
+                initWinsock();
+                initServerConnection(this->ip.c_str());
+            } catch (const std::runtime_error &e) {
+                log << e.what() << std::endl;
+                throw e;
+            }
         }
     }
 

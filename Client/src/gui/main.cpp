@@ -34,6 +34,7 @@
 #include "config.h"
 #include "structs.h"
 #include "state.h"
+#include "save_load_file.h"
 
 static ID3D11Device             *device = nullptr;
 static ID3D11DeviceContext      *context = nullptr;
@@ -297,12 +298,16 @@ bool scrollTerminalToTheBottom = false;
 bool setKeyboardFocusToCommandLine = false;
 
 std::string connectionErrorString;
+std::string saveStateErrorString;
+std::string loadStateErrorString;
 
 static int selected = 0;
 
 void renderGUI(bool *done) {
     static bool show_about_window = false;
     static bool show_instruction_window = false;
+    static bool show_save_state = false;
+    static bool show_load_state = false;
 
     ImGui::SetNextWindowPos(ImVec2(0, 0));
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
@@ -314,6 +319,8 @@ void renderGUI(bool *done) {
     if(ImGui::BeginMenuBar()) {
         if(ImGui::BeginMenu("File")) {
             if(ImGui::MenuItem("Save logs")) { saveLogs(); }
+            if(ImGui::MenuItem("Save state")) { show_save_state = true; }
+            if(ImGui::MenuItem("Load state")) {show_load_state = true; }
             if(ImGui::MenuItem("Close")) { *done = true; }
             ImGui::EndMenu();
         }
@@ -327,7 +334,43 @@ void renderGUI(bool *done) {
         ImGui::EndMenuBar();
     }
 
-    if (show_about_window) {
+    if(show_save_state) {
+        static bool show_dialog = true;
+        std::string filepath;
+
+        ImGui::Begin("Save state");
+        if(show_dialog)
+            filepath = ShowSaveFileDialog();
+
+        if (!filepath.empty()) {
+            if(saveState(filepath, connections, saveStateErrorString) != 0) {
+                ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), saveStateErrorString.c_str());
+            } else {
+                ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "State saved successfully");
+            }
+            show_dialog = false;
+        }
+        ImGui::End();
+    }
+
+    if(show_load_state) {
+        static bool show_dialog = true;
+        std::string filepath;
+
+        ImGui::Begin("Load state");
+        filepath = ShowOpenFileDialog();
+        if (!filepath.empty()) {
+            if(loadState(filepath, connections, loadStateErrorString) != 0) {
+                ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), loadStateErrorString.c_str());
+            } else {
+                ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "State loaded successfully");
+            }
+            show_dialog = false;
+        }
+        ImGui::End();
+    }
+
+    if(show_about_window) {
         ImGui::Begin("About", &show_about_window);
         ImGui::Text("A simple remote access tool client.");
         ImGui::End();

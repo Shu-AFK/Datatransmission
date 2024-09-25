@@ -9,7 +9,6 @@
 #include <stdexcept>
 
 #include <lz4.h>
-#include <bitset>
 
 std::string getStateFilename(const std::string &name) {
     int highestCount = 0;
@@ -67,7 +66,7 @@ std::string getState(const std::vector<Connection>& connections) {
         appendBinaryLength(state, usernameLength);
         state.write(conn.client->username.c_str(), usernameLength);
 
-        std::string passwordEnc = encryptPassword(conn.client->password, conn.key);
+        std::string passwordEnc = encryptPassword(conn.client->password, static_cast<unsigned char *>(conn.key));
         uint32_t passwordLength = static_cast<uint32_t>(passwordEnc.length());
 
         appendBinaryLength(state, passwordLength);
@@ -112,19 +111,19 @@ std::string decompressState(const std::string& compressedData, int originalSize)
     return decompressedData;
 }
 
-int saveState(const std::string &filename, const std::vector<Connection> &connections) {
+int saveState(const std::string &filename, const std::vector<Connection> &connections, std::string &error) {
+    error = "";
+
     try {
         std::string state = getState(connections);
         if (state.empty()) {
-            std::cerr << "Failed to get state info" << std::endl;
-            return -1;
+            throw std::runtime_error("Failed to get state info");
         }
 
         std::string stateFilename = getStateFilename(filename);
         std::ofstream file(stateFilename, std::ios::binary);
         if (!file.is_open()) {
-            std::cerr << "Failed to open file" << std::endl;
-            return -1;
+            throw std::runtime_error("Failed to open file");
         }
 
         std::string content;
@@ -132,20 +131,18 @@ int saveState(const std::string &filename, const std::vector<Connection> &connec
         if (state.length() > sizeof(uint32_t) * 256) {
             content = compressState(state);
             if (content.empty()) {
-                std::cerr << "Failed to compress state" << std::endl;
-                return -1;
+                throw std::runtime_error("Failed to compress state");
             }
             file.write(reinterpret_cast<const char *>(STATE_COMPRESSED), 1);
             file.write(reinterpret_cast<char *>(static_cast<uint32_t>(state.length())), sizeof(uint32_t));
         } else {
-            file.write(reinterpret_cast<const char *>(STATE_UNCOMPRESSED), 1);
+            file.write(reinterpret_cast<const char *>(STATE_UNCOMPRESSED), 1); // TODO: ERROR
             content = state;
         }
 
         file.write(content.data(), content.size());
         if (file.fail()) {
-            std::cerr << "Failed to write compressed state to file" << std::endl;
-            return -1;
+            throw std::runtime_error("Failed to write compressed state to file");
         }
 
         file.close();
@@ -182,27 +179,26 @@ Connection readConnection(std::stringstream& stateStream) {
     conn.client = std::make_shared<Client>(ip, port, username, password);
 
     if (!stateStream.read(reinterpret_cast<char*>(&buttonNameLength), sizeof(buttonNameLength))) throw std::runtime_error("Failed to read button name length");
-    conn.buttonName = new char[buttonNameLength + 1];
     if (!stateStream.read(conn.buttonName, buttonNameLength)) throw std::runtime_error("Failed to read button name");
     conn.buttonName[buttonNameLength] = '\0';
 
     return conn;
 }
 
-int loadState(const std::string &path, std::vector<Connection> &connections) {
+int loadState(const std::string &path, std::vector<Connection> &connections, std::string &error) {
+    error = "";
+
     try {
         std::ifstream file(path, std::ios::binary);
         if (!file.is_open()) {
-            std::cerr << "Failed to open file: " << path << std::endl;
-            return -1;
+            throw std::runtime_error("Failed to open file: " + path);
         }
 
         char stateType;
         file.read(&stateType, 1);
 
         if (file.fail()) {
-            std::cerr << "Failed to read state type from file" << std::endl;
-            return -1;
+            throw std::runtime_error("Failed to read state type from file");
         }
 
         std::string content;
@@ -211,8 +207,7 @@ int loadState(const std::string &path, std::vector<Connection> &connections) {
             file.read(reinterpret_cast<char*>(&uncompressedSize), sizeof(uncompressedSize));
 
             if (file.fail()) {
-                std::cerr << "Failed to read uncompressed size from file" << std::endl;
-                return -1;
+                throw std::runtime_error("Failed to read uncompressed size from file");
             }
 
             std::vector<char> compressedData((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
@@ -220,8 +215,7 @@ int loadState(const std::string &path, std::vector<Connection> &connections) {
         } else if (stateType == STATE_UNCOMPRESSED) {
             content = std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         } else {
-            std::cerr << "Invalid state type in file" << std::endl;
-            return -1;
+            throw std::runtime_error("Invalid state type in file");
         }
 
         file.close();
@@ -229,11 +223,11 @@ int loadState(const std::string &path, std::vector<Connection> &connections) {
         // Deserialize the state content back to connections
         std::stringstream stateStream(content, std::stringstream::binary | std::stringstream::in);
         while (stateStream.peek() != std::stringstream::traits_type::eof()) {
-
             connections.push_back(readConnection(stateStream));
         }
     } catch (const std::runtime_error &e) {
         std::cerr << "Error in loadState: " << e.what() << std::endl;
+        error = std::format("Error in loadState: {}", e.what());
         return -1;
     }
 
