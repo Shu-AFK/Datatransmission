@@ -23,9 +23,11 @@ std::string decryptPassword(const std::string &encrypted_password, unsigned char
         throw std::runtime_error("Invalid encrypted password length");
     }
 
+    // Extract the nonce from the beginning of the encrypted password
     unsigned char nonce[crypto_secretbox_NONCEBYTES];
     std::memcpy(nonce, encrypted_password.data(), sizeof(nonce));
 
+    // Extract the ciphertext
     std::vector<unsigned char> decrypted(encrypted_password.size() - sizeof(nonce) - crypto_secretbox_MACBYTES);
     if (crypto_secretbox_open_easy(decrypted.data(), reinterpret_cast<const unsigned char*>(encrypted_password.data()) + sizeof(nonce),
                                    encrypted_password.size() - sizeof(nonce), nonce, key) != 0) {

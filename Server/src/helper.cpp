@@ -20,7 +20,7 @@ int run_init(std::basic_string<char> port) {
 	std::string path_to_bat_1;
 	std::string path_to_bat_2;
 	
-	if(auto p = find_path(std::filesystem::current_path(), "scripts")) {
+	if(auto p = find_path(std::filesystem::current_path(), "scripts", "OpenFirewallPort.bat")) {
 		path_to_bat_1 = std::filesystem::path(*p / "OpenFirewallPort.bat").string();
 		path_to_bat_2 = std::filesystem::path(*p / "CheckIfOpen.bat").string();
 	}
@@ -59,7 +59,7 @@ int create_start_script(const std::string& cwd, const std::string& port) {
 	
 	std::string path_to_bat;
 	
-	if(auto p = find_path(std::filesystem::current_path(), "scripts")) {
+	if(auto p = find_path(std::filesystem::current_path(), "scripts", "run_exec.bat")) {
 		path_to_bat = std::filesystem::path(*p / "run_exec.bat").string();
 	}
 	else {
@@ -89,16 +89,18 @@ int create_start_script(const std::string& cwd, const std::string& port) {
  * If found the target returns path, that can be accessed through operator *. (Implicitly converts to true)
  * If not returns std::nullopt. (Implicitly converts to false)
  */
-std::optional<std::filesystem::path> find_path(std::filesystem::path start_path, const std::string& target_directory) {
+std::optional<std::filesystem::path> find_path(std::filesystem::path start_path, const std::string& target_directory, const std::string& script_name) {
     try {
         while (start_path != start_path.root_directory()) {
-            if (std::filesystem::exists(start_path / target_directory)) {
-                return start_path / target_directory;
+            auto potential_path = start_path / target_directory;
+            if (std::filesystem::exists(potential_path) && std::filesystem::exists(potential_path / script_name)) {
+                return potential_path;
             }
 
             for (const auto& directory_entry : std::filesystem::recursive_directory_iterator(start_path)) {
-                if (std::filesystem::exists(directory_entry.path() / target_directory)) {
-                    return directory_entry.path() / target_directory;
+                auto potential_recursive_path = directory_entry.path() / target_directory;
+                if (std::filesystem::exists(potential_recursive_path) && std::filesystem::exists(potential_recursive_path / script_name)) {
+                    return potential_recursive_path;
                 }
             }
 

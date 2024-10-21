@@ -351,6 +351,7 @@ void renderGUI(bool *done) {
             show_dialog = false;
         }
         ImGui::End();
+        show_save_state = false;
     }
 
     if(show_load_state) {
@@ -368,6 +369,7 @@ void renderGUI(bool *done) {
             show_dialog = false;
         }
         ImGui::End();
+        show_load_state = false;
     }
 
     if(show_about_window) {

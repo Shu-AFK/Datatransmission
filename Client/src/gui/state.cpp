@@ -133,10 +133,10 @@ int saveState(const std::string &filename, const std::vector<Connection> &connec
             if (content.empty()) {
                 throw std::runtime_error("Failed to compress state");
             }
-            file.write(reinterpret_cast<const char *>(STATE_COMPRESSED), 1);
-            file.write(reinterpret_cast<char *>(static_cast<uint32_t>(state.length())), sizeof(uint32_t));
+            file.write(std::to_string(STATE_COMPRESSED).c_str(), 1);
+            file.write(std::to_string(static_cast<uint32_t>(state.length())).c_str(), sizeof(uint32_t));
         } else {
-            file.write(reinterpret_cast<const char *>(STATE_UNCOMPRESSED), 1); // TODO: ERROR
+            file.write(std::to_string(STATE_UNCOMPRESSED).c_str(), 1);
             content = state;
         }
 
@@ -194,6 +194,12 @@ int loadState(const std::string &path, std::vector<Connection> &connections, std
             throw std::runtime_error("Failed to open file: " + path);
         }
 
+        file.seekg(0, std::ios::end);
+        if (file.tellg() == 0) {
+            throw std::runtime_error("File is empty: " + path);
+        }
+        file.seekg(0, std::ios::beg);
+
         char stateType;
         file.read(&stateType, 1);
 
@@ -202,7 +208,7 @@ int loadState(const std::string &path, std::vector<Connection> &connections, std
         }
 
         std::string content;
-        if (stateType == STATE_COMPRESSED) {
+        if ((stateType - '0') == STATE_COMPRESSED) {
             uint32_t uncompressedSize;
             file.read(reinterpret_cast<char*>(&uncompressedSize), sizeof(uncompressedSize));
 
@@ -212,7 +218,7 @@ int loadState(const std::string &path, std::vector<Connection> &connections, std
 
             std::vector<char> compressedData((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
             content = decompressState(std::string(compressedData.begin(), compressedData.end()), uncompressedSize);
-        } else if (stateType == STATE_UNCOMPRESSED) {
+        } else if ((stateType - '0') == STATE_UNCOMPRESSED) {
             content = std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         } else {
             throw std::runtime_error("Invalid state type in file");

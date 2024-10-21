@@ -1242,7 +1242,7 @@ int Server::handleCopyFromCommand(char* command) {
 int Server::move_start() {
     if (inStartup)
         return -2;
-	if(auto p = find_path(std::filesystem::current_path(), "scripts")) {
+	if(auto p = find_path(std::filesystem::current_path(), "scripts", "move_startup.bat")) {
 		auto path_to_bat = std::filesystem::path(*p / "move_startup.bat");
 		if(system(path_to_bat.string().c_str()) != 0)
 			return -1;
@@ -1279,7 +1279,7 @@ int Server::remove_start() {
     if (!inStartup)
         return -2;
 	
-	if(auto p = find_path(std::filesystem::current_path(), "scripts")) {
+	if(auto p = find_path(std::filesystem::current_path(), "scripts", "remove_startup.bat")) {
 		path_to_bat = std::filesystem::path(*p / "remove_startup.bat").string();
 	}
 	else {
@@ -1725,7 +1725,7 @@ int Server::addStartup() {
     if (inStartup)
         return -2;
 	
-	if(auto p = find_path(std::filesystem::current_path(), "scripts")) {
+	if(auto p = find_path(std::filesystem::current_path(), "scripts", "move_startup.bat")) {
 		auto path_to_bat = std::filesystem::path(*p / "move_startup.bat");
 		if(system(path_to_bat.string().c_str()) != 0)
 			return -1;
