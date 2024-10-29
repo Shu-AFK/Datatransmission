@@ -7,6 +7,7 @@
 #include <format>
 #include <string>
 #include <stdexcept>
+#include <algorithm>
 
 #include <lz4.h>
 
@@ -31,13 +32,8 @@ std::string getStateFilename(const std::string &name) {
     return std::format("{}{}.state", name, highestCount == 0 ? "" : std::to_string(highestCount + 1));
 }
 
-bool isSingleByteChars(const std::string& str) {
-    for (unsigned char c : str) {
-        if (c > 127) {
-            return false;
-        }
-    }
-    return true;
+bool isSingleByteChars(const std::string &str) {
+    return std::all_of(str.begin(), str.end(), [](unsigned char c) { return c <= 127; });
 }
 
 void appendBinaryLength(std::stringstream& stream, uint32_t length) {

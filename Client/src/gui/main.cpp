@@ -418,6 +418,11 @@ void renderGUI(bool *done) {
             connectButtonHandler(ipv4, port, username, password);
         }
 
+        ImGui::SameLine();
+        if(ImGui::Button("Load State")) {
+            show_load_state = true;
+        }
+
         if(displayErrorText) {
             ImGui::SameLine();
             ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "[E] Input error");
@@ -521,6 +526,11 @@ void renderGUI(bool *done) {
             ImGui::SameLine();
             if(ImGui::Button("Disconnect")) {
                 disconnectFromServer(selected);
+            }
+
+            ImGui::SameLine();
+            if(ImGui::Button("Save State")) {
+                show_save_state = true;
             }
         }
     }
