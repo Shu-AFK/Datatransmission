@@ -1,7 +1,5 @@
 // TODO: Save and load states(All previous shells and connections)
-// TODO: Display errors red
 // TODO: Stack to go back to previous command
-// TODO: Make stuff like auto scroll the bottom when sending command configurable in settings
 
 #define IMGUI_API
 
@@ -494,7 +492,10 @@ void renderGUI(bool *done) {
         {
             ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
             ImGui::BeginChild("Terminal", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y * 0.7f), ImGuiChildFlags_None, window_flags);
-            ImGui::Text(connections[selected].client->getBuffer().c_str());
+            std::string buffer = connections[selected].client->getBuffer();
+
+            displayText(buffer);
+
             if(scrollTerminalToTheBottom) {
                 ImGui::SetScrollHereY(1.0f);
                 scrollTerminalToTheBottom = false;

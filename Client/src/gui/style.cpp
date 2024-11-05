@@ -7,6 +7,9 @@ fonts ifonts = {nullptr, nullptr};
 ImVec4 buttonActiveCol;
 ImVec4 buttonNotActiveCol;
 
+ImVec4 errorTextColor = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
+ImVec4 textColor = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+
 std::optional<std::filesystem::path> find_path(std::filesystem::path start_path, const std::string& target_directory) {
     start_path = std::filesystem::absolute(start_path);
 
@@ -33,7 +36,7 @@ std::optional<std::filesystem::path> find_path(std::filesystem::path start_path,
 
 void imgui_theme() {
     ImVec4* colors = ImGui::GetStyle().Colors;
-    colors[ImGuiCol_Text]                   = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+    colors[ImGuiCol_Text]                   = textColor;
     colors[ImGuiCol_TextDisabled]           = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
     colors[ImGuiCol_WindowBg]               = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
     colors[ImGuiCol_ChildBg]                = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
@@ -162,3 +165,38 @@ void verticalSpacing(size_t n) {
     }
 }
 
+// TODO: Make the function work with \t and \n like it did before when error
+void displayText(const std::string &buffer) {
+    size_t errorPos = buffer.find("Error");
+    size_t failedPos = buffer.find("Failed");
+
+    if (errorPos == std::string::npos && failedPos == std::string::npos) {
+        ImGui::Text(buffer.c_str());
+        return;
+    }
+
+    size_t minPos = std::min(
+            (errorPos != std::string::npos ? errorPos : buffer.size()),
+            (failedPos != std::string::npos ? failedPos : buffer.size())
+    );
+
+    std::string noErrorString = buffer.substr(0, minPos);
+    ImGui::Text(noErrorString.c_str());
+
+    std::string restOfBuffer = buffer.substr(minPos);
+    size_t endOfErrorText = restOfBuffer.find('\n');
+
+    // Ensure endOfErrorText is within bounds
+    if (endOfErrorText != std::string::npos) {
+        ImGui::PushStyleColor(ImGuiCol_Text, errorTextColor);
+        ImGui::Text(restOfBuffer.substr(0, endOfErrorText).c_str());
+        ImGui::PopStyleColor();
+
+        displayText(restOfBuffer.substr(endOfErrorText + 1));
+    } else {
+        // Handle the case where the error text is the last line
+        ImGui::PushStyleColor(ImGuiCol_Text, errorTextColor);
+        ImGui::Text(restOfBuffer.c_str());
+        ImGui::PopStyleColor();
+    }
+}
