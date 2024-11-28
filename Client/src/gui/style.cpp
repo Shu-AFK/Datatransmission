@@ -169,21 +169,27 @@ void verticalSpacing(size_t n) {
 void displayText(const std::string &buffer) {
     size_t errorPos = buffer.find("Error");
     size_t failedPos = buffer.find("Failed");
+    size_t cmdNotExists = buffer.find("The command doesn't exist");
 
-    if (errorPos == std::string::npos && failedPos == std::string::npos) {
+    if (errorPos == std::string::npos && failedPos == std::string::npos && cmdNotExists == std::string::npos) {
         ImGui::Text(buffer.c_str());
         return;
     }
 
-    size_t minPos = std::min(
+    size_t minPosFirst = std::min (
             (errorPos != std::string::npos ? errorPos : buffer.size()),
             (failedPos != std::string::npos ? failedPos : buffer.size())
     );
 
-    std::string noErrorString = buffer.substr(0, minPos);
+    size_t minPosSecond = std::min (
+            minPosFirst,
+            (cmdNotExists != std::string::npos ? cmdNotExists : buffer.size())
+    );
+
+    std::string noErrorString = buffer.substr(0, minPosSecond);
     ImGui::Text(noErrorString.c_str());
 
-    std::string restOfBuffer = buffer.substr(minPos);
+    std::string restOfBuffer = buffer.substr(minPosSecond);
     size_t endOfErrorText = restOfBuffer.find('\n');
 
     // Ensure endOfErrorText is within bounds
